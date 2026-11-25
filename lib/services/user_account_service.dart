@@ -31,6 +31,7 @@ class SavedAccount {
   /// Unique key for scoping per-user SharedPreferences data.
   /// Uses serverUrl + username to uniquely identify an account.
   String get scopeKey {
+    if (kIsWeb) return jsonEncode([backend.key, normalizeServerUrl(serverUrl), username]);
     // Normalize: strip protocol and trailing slashes for consistency
     final cleanUrl = serverUrl
         .replaceAll(RegExp(r'^https?://'), '')
@@ -69,11 +70,12 @@ class SavedAccount {
   @override
   bool operator ==(Object other) =>
       other is SavedAccount &&
+      (!kIsWeb || other.backend == backend) &&
       other.serverUrl == serverUrl &&
       other.username == username;
 
   @override
-  int get hashCode => Object.hash(serverUrl, username);
+  int get hashCode => kIsWeb ? Object.hash(backend, serverUrl, username) : Object.hash(serverUrl, username);
 }
 
 /// Manages multiple saved user accounts and provides scoped storage keys.
@@ -150,6 +152,7 @@ class UserAccountService {
     SavedAccount? match;
     for (final a in _accounts) {
       if (a.username == username &&
+          (!kIsWeb || a.backend == ServerBackend.loadActive(prefs)) &&
           normalizeServerUrl(a.serverUrl) == normalizeServerUrl(server)) {
         match = a;
         break;
@@ -174,7 +177,7 @@ class UserAccountService {
     }
     // Remove existing entry for same server+username (update token)
     _accounts.removeWhere(
-        (a) => a.serverUrl == account.serverUrl && a.username == account.username);
+        (a) => a.serverUrl == account.serverUrl && a.username == account.username && (!kIsWeb || a.backend == account.backend));
     _accounts.insert(0, account); // Most recent first
     _activeScopeKey = account.scopeKey;
     await _persist();
@@ -182,9 +185,9 @@ class UserAccountService {
   }
 
   /// Switch to a different saved account. Returns the account or null if not found.
-  SavedAccount? switchTo(String serverUrl, String username) {
+  SavedAccount? switchTo(String serverUrl, String username, {ServerBackend? backend}) {
     final account = _accounts.firstWhere(
-      (a) => a.serverUrl == serverUrl && a.username == username,
+      (a) => a.serverUrl == serverUrl && a.username == username && (!kIsWeb || a.backend == (backend ?? ServerBackend.active)),
       orElse: () => SavedAccount(serverUrl: '', username: '', token: ''),
     );
     if (account.token.isEmpty) return null;
@@ -196,10 +199,10 @@ class UserAccountService {
 
   /// Remove a saved account. Does NOT delete its scoped data (in case the
   /// user wants to re-add later). Returns true if found and removed.
-  Future<bool> removeAccount(String serverUrl, String username) async {
+  Future<bool> removeAccount(String serverUrl, String username, {ServerBackend? backend}) async {
     final before = _accounts.length;
     _accounts.removeWhere(
-        (a) => a.serverUrl == serverUrl && a.username == username);
+        (a) => a.serverUrl == serverUrl && a.username == username && (!kIsWeb || a.backend == (backend ?? ServerBackend.active)));
     if (_accounts.length < before) {
       await _persist();
       debugPrint('[UserAccount] Removed: $username@$serverUrl');
@@ -211,7 +214,7 @@ class UserAccountService {
   /// Update tokens for the active account (e.g. after token refresh).
   Future<void> updateTokens(String serverUrl, String username, String newToken, {String? refreshToken}) async {
     final idx = _accounts.indexWhere(
-        (a) => a.serverUrl == serverUrl && a.username == username);
+        (a) => a.serverUrl == serverUrl && a.username == username && (!kIsWeb || a.backend == ServerBackend.active));
     if (idx >= 0) {
       final old = _accounts[idx];
       if (old.token == newToken &&
@@ -332,7 +335,7 @@ class UserAccountService {
   /// sure a rejected token cannot be quick-switched back into the app.
   Future<void> clearTokens(String serverUrl, String username) async {
     final idx = _accounts.indexWhere(
-        (a) => a.serverUrl == serverUrl && a.username == username);
+        (a) => a.serverUrl == serverUrl && a.username == username && (!kIsWeb || a.backend == ServerBackend.active));
     if (idx < 0) return;
     final old = _accounts[idx];
     _accounts[idx] = SavedAccount(
@@ -373,6 +376,7 @@ class UserAccountService {
     String newServerUrl,
     Map<String, String> customHeaders,
   ) async {
+    if (kIsWeb) return false; // A changed target requires explicit new sign-in.
     final idx = _accounts.indexWhere(
         (a) => a.serverUrl == oldServerUrl && a.username == username);
     if (idx < 0) return false;

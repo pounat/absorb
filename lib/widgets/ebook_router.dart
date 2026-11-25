@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'bookorbit_readalong_view.dart';
+import 'bookorbit_web_access.dart';
 import 'expressive.dart';
 
 import 'package:flutter/material.dart';
@@ -91,6 +93,12 @@ Future<void> openEbookReader(
   bool startReadAlong = false,
   bool playFromOpenCfi = false,
 }) async {
+  if (usesBookOrbitWebFiles(context) && ebookExt(ebookFile) == 'epub') {
+    await Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
+      builder: (_) => BookOrbitReadAlongView(itemId: itemId, title: title)));
+    return;
+  }
+  if (showBookOrbitWebAccess(context, itemId)) return;
   final ext = ebookExt(ebookFile);
   final Widget viewer;
   if (ext == 'epub') {

@@ -3,6 +3,7 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import 'player_settings.dart';
 import 'server_backend.dart';
+import 'browser_adapter.dart';
 
 class SocketService {
   static const authorChangeEvents = <String>[
@@ -370,6 +371,7 @@ class SocketService {
 
   /// Update the stored token (e.g. after a JWT refresh) and re-auth if connected.
   void updateToken(String newToken) {
+    if (kIsWeb || newToken == BrowserAdapter.cookieSentinel) { disconnect(); return; }
     _token = newToken;
     if (_socket?.connected == true) {
       debugPrint('[Socket] Re-authenticating with refreshed token');
@@ -378,6 +380,7 @@ class SocketService {
   }
 
   void connect(String serverUrl, String token, {Map<String, String> customHeaders = const {}}) {
+    if (kIsWeb || token == BrowserAdapter.cookieSentinel) { disconnect(); return; }
     if (_socket != null) disconnect();
 
     // BookOrbit has its own socket namespaces and no progress events, so

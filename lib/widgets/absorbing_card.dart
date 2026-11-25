@@ -1,8 +1,13 @@
 import 'dart:async';
 import 'glass_look.dart';
+import '../web_tesla/tesla_mode.dart';
+import '../web_tesla/tesla_book_pane.dart';
+import '../web_tesla/playback_recovery_notice.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
+import 'bookorbit_web_access.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -384,6 +389,8 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
   @override
   void initState() {
     super.initState();
+    // Create while mounted, not lazily for the first time during dispose.
+    _grow = AnimationController(vsync: this);
     // Baseline the server-change tick so only a CHANGE after mount re-fetches
     // (the initial fill is handled by _fetchChaptersIfNeeded below).
     _lastSeenUpdatedAt = context.read<LibraryProvider>().itemUpdatedAt(_itemId);
@@ -1143,6 +1150,17 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                         fontFeatures: const [FontFeature.tabularFigures()],
                         shadows: [Shadow(color: ink?.shadow ?? (isDark ? Colors.black.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.6)), blurRadius: 4)],
                       );
+                      if (TeslaMode.of(context)) {
+                        return Column(mainAxisSize: MainAxisSize.min, children: [
+                          LinearProgressIndicator(value: liveBookProgress),
+                          const SizedBox(height: 8),
+                          Wrap(alignment: WrapAlignment.center, spacing: 16, runSpacing: 8, children: [
+                            Text(fmtTime(elapsed), style: tt.bodyLarge),
+                            Text('${(liveBookProgress * 100).toStringAsFixed(1)}%', style: tt.bodyLarge),
+                            Text('-${fmtTime(remaining)}', style: tt.bodyLarge),
+                          ]),
+                        ]);
+                      }
                       return Stack(
                         alignment: Alignment.center,
                         children: [
@@ -1369,7 +1387,31 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                   child: CardDualProgressBar(grow: alignG, grownInset: grownInset, player: widget.player, accent: accent, isActive: _isActive, staticProgress: (_isPodcastEpisode && _chapters.isEmpty) ? 0.0 : progress, staticDuration: (_isPodcastEpisode && _chapters.isEmpty) ? widget.player.totalDuration : _effectiveDuration, chapters: _chapters, showBookBar: false, showChapterBar: true, chapterName: (_isPodcastEpisode && _chapters.isEmpty) ? (widget.player.currentEpisodeTitle ?? widget.player.currentTitle ?? _title) : (_episodeId != null && !_isActive ? (_recentEpisode?['title'] as String? ?? _title) : (_chapters.isEmpty ? _title : _chapterName(chapterIdx))), chapterIndex: chapterIdx, totalChapters: totalChapters, itemId: _itemId, compact: compact, libraryId: _resolveLibraryId()),
                 );
 
-          final controlsRow = Padding(
+          final controlsRow = kIsWeb
+              ? ListenableBuilder(
+            listenable: widget.player,
+            builder: (context, _) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: PlaybackRecoveryNotice(
+                isWeb: kIsWeb,
+                isActive: _isActive,
+                recoveryRequired: widget.player.webPlaybackRecoveryRequired,
+                message: widget.player.webPlaybackRecoveryMessage,
+                child: CardPlaybackControls(
+                  player: widget.player,
+                  accent: accent,
+                  isActive: _isActive,
+                  isStarting: _isStarting,
+                  onStart: _startPlayback,
+                  itemId: _itemId,
+                  showPlayButton: !_coverPlayButton,
+                  libraryId: _resolveLibraryId(),
+                  playFocusNode: _tvPlayFocus,
+                ),
+              ),
+            ),
+          )
+              : Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: CardPlaybackControls(
                     player: widget.player,
@@ -1449,6 +1491,37 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                 ),
                 );
 
+          if (TeslaMode.of(context)) {
+            return TeslaBookPane(
+              title: _title,
+              author: _author,
+              cover: ExcludeSemantics(child: IgnorePointer(child: coverArea)),
+              progress: CardDualProgressBar(
+                player: widget.player, accent: accent, isActive: _isActive,
+                staticProgress: progress, staticDuration: _effectiveDuration,
+                chapters: _chapters, showBookBar: true, showChapterBar: false,
+                itemId: _itemId, libraryId: _resolveLibraryId(),
+              ),
+              controls: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  controlsRow,
+                  const SizedBox(height: 12),
+                  CardSpeedButtonInline(player: widget.player, accent: accent,
+                    isActive: _isActive, itemId: _itemId, libraryId: _resolveLibraryId()),
+                  const SizedBox(height: 8),
+                  OutlinedButton(
+                    key: const ValueKey('tesla-chapters'),
+                    style: OutlinedButton.styleFrom(minimumSize: const Size(48, 56)),
+                    onPressed: _chapters.isEmpty ? null
+                      : () => _makeActions().showChapters(context, accent, tt),
+                    child: Text(l.chapters),
+                  ),
+                ],
+              ),
+            );
+          }
           if (desktopPresentation) {
             final episodeTitle = _episodeId == null
                 ? null
@@ -1783,7 +1856,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
   bool? _liftCompact;
   Rect? _liftFrom;
   _CardLiftRoute? _route;
-  late final AnimationController _grow = AnimationController(vsync: this);
+  late final AnimationController _grow;
   OverlayEntry? _growEntry;
   bool _growSettling = false;
   double _dragUp = 0;
@@ -2001,6 +2074,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
   }
 
   Future<void> _startPlayback() async {
+    if (showBookOrbitWebAccess(context, _itemId)) return;
     if (_isStarting) return;
     // If we're casting this book, don't start local playback
     final cast = ChromecastService();

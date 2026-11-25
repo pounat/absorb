@@ -85,6 +85,7 @@ class LocalSessionService {
   }
 
   Future<void> _enqueue(Map<String, dynamic> session) async {
+    if (kIsWeb) return; // Browser playback has no LOCAL queue.
     final pending = await ScopedPrefs.getStringList(_kPending);
     pending.add(jsonEncode(session));
     await ScopedPrefs.setStringList(_kPending, pending);
@@ -145,6 +146,7 @@ class LocalSessionService {
   /// that owned it is gone): move it to the replay queue so it ships on the
   /// next connection, and start clean.
   Future<void> init() async {
+    if (kIsWeb) return;
     await _loadActive();
     if (_active != null) {
       debugPrint('[LocalSession] Recovering orphaned active session ${_active!['id']} into pending');
@@ -167,6 +169,7 @@ class LocalSessionService {
     String? displayAuthor,
     bool streamed = false,
   }) async {
+    if (kIsWeb) return;
     await _loadActive();
     // Narration streamed from the EPUB on the server is still logged through
     // a local session, but the server should show it as Direct Play.
@@ -228,6 +231,7 @@ class LocalSessionService {
     required double currentTime,
     ApiService? api,
   }) async {
+    if (kIsWeb) return;
     if (seconds <= 0) return;
     if (DownloadService().isFromOtherAccount(progressKey)) return;
     await _loadActive();
@@ -291,6 +295,7 @@ class LocalSessionService {
   /// Upsert the active session now (idempotent — cumulative total). Returns
   /// true when the server durably recorded it (so the caller can skip queuing).
   Future<bool> pushActive({required ApiService api}) async {
+    if (kIsWeb) return false;
     await _loadActive();
     // The session can end while the push is away (a book finishing during
     // a 20s server timeout did), so work from the copy taken here.
@@ -331,6 +336,7 @@ class LocalSessionService {
   /// false (offline, or the push failed) it's queued for replay; when true it's
   /// already on the server so we just drop it.
   Future<void> finalizeActive({bool pushed = false}) async {
+    if (kIsWeb) return;
     await _loadActive();
     if (_active == null) return;
     if (!pushed) await _enqueue(_active!);
@@ -341,6 +347,7 @@ class LocalSessionService {
   /// Replay queued sessions (plus the in-progress active session) to the
   /// server. Called on reconnect / manual-offline-off.
   Future<void> flushPending({required ApiService api}) async {
+    if (kIsWeb) return;
     if (_flushing) return;
     _flushing = true;
     try {

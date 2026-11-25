@@ -1,4 +1,5 @@
 import 'package:flutter_svg/flutter_svg.dart';
+import 'bookorbit_web_access.dart';
 import 'expressive.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -86,6 +87,7 @@ void showBookDetailSheet(
   String? sourceCollectionId,
   String? sourceCollectionName,
 }) {
+
   if (AppPlatform.isTv) {
     openTvBook(context, {'id': itemId});
     return;
@@ -810,6 +812,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     final readStatus = _displayReadStatus(isFinished);
     final providerBadges = auth.isBookOrbit ? _providerBadges() : const <Map<String, dynamic>>[];
 
+    final nativeWebReadAlong = kIsWeb && auth.isBookOrbit && media['narration'] != null;
     final isEbookOnly = PlayerSettings.isEbookOnly(_item!);
     // Preview only makes sense before the book has been started. The 60s
     // grace means an accidental tap-and-close doesn't hide it forever. Check
@@ -1219,7 +1222,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
       // A companion ebook gets its own, smaller button under Absorb with the
       // reading progress filled in the same way. Ebook-only books already
       // have Read as the big button above.
-      if (!isEbookOnly && ebookFile != null && canReadEbook(ebookFile)) ...[
+      if ((!isEbookOnly || nativeWebReadAlong) && ebookFile != null && canReadEbook(ebookFile)) ...[
         const SizedBox(height: 8),
         Builder(builder: (context) {
           final ebookProgress = lib.getEbookProgress(widget.itemId);
@@ -1242,7 +1245,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
                       Icon(Icons.menu_book_rounded, size: 18, color: accent),
                       const SizedBox(width: 8),
-                      Text(l.readEbook,
+                      Text(nativeWebReadAlong ? 'READ ALONG' : l.readEbook,
                           style: tt.labelLarge?.copyWith(fontWeight: FontWeight.w600, color: accent)),
                     ]),
                   ),

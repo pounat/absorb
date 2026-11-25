@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'glass_look.dart';
+import '../web_tesla/tesla_mode.dart';
+import '../web_tesla/tesla_playback_controls.dart';
 import '../services/audio_player_service.dart';
 import '../services/chromecast_service.dart';
 import 'card_buttons.dart';
@@ -101,6 +103,20 @@ class _CardPlaybackControlsState extends State<CardPlaybackControls> {
         final castItemId = widget.itemId ?? widget.player.currentItemId;
         final isCastingThis = cast.isCasting && cast.castingItemId == castItemId;
 
+
+        if (TeslaMode.of(context)) {
+          final active = isCastingThis || widget.isActive;
+          return TeslaPlaybackControls(
+            playing: isCastingThis ? cast.isPlaying : widget.isActive && widget.player.isPlaying,
+            loading: widget.isStarting || (widget.isActive && widget.player.isLoadingOrBuffering && !widget.player.isPlaying),
+            onPlay: isCastingThis ? cast.togglePlayPause : widget.isActive
+                ? () => widget.player.togglePlayPause(fromUi: true) : widget.onStart,
+            onBack: !active ? null : isCastingThis ? () => cast.skipBackward(15) : () => widget.player.skipBackward(15),
+            onForward: !active ? null : isCastingThis ? () => cast.skipForward(30) : () => widget.player.skipForward(30),
+            onPrevious: !active ? null : isCastingThis ? cast.skipToPreviousChapter : widget.player.skipToPreviousChapter,
+            onNext: !active ? null : isCastingThis ? cast.skipToNextChapter : widget.player.skipToNextChapter,
+          );
+        }
         return _grown(isCastingThis ? _buildCastControls(cast) : _buildLocalControls());
       },
     );

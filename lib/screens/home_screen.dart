@@ -2,6 +2,7 @@ import 'dart:convert';
 import '../widgets/expressive.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import '../widgets/bookorbit_web_access.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -1526,6 +1527,7 @@ class _ContinueListeningCardState extends State<_ContinueListeningCard> {
   }
 
   Future<void> _openEbook(BuildContext context, String itemId, String title) async {
+    if (showBookOrbitWebAccess(context, itemId)) return;
     final l = AppLocalizations.of(context)!;
     setState(() => _isLoading = true);
     var ebookFile = resolveEbookFile(widget.item) ?? await cachedEbookFileFor(itemId);

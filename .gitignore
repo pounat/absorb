@@ -61,8 +61,24 @@ android/key.properties
 # Build scripts (local only)
 *.sh
 
-# Tests (local only)
-/test/
+# Synthetic browser regression tests are part of the contribution.
+
+# Private operator configuration and credentials
+.env*
+secrets/
+credentials/
+.cloudflared/
+operator/
+*.pem
+*.key
+*.p12
+*.db
+*.sqlite*
+*.bak
+*.backup
+node_modules/
+dist-source/
+__pycache__/
 
 # Battery profiling output
 /battery-reports/

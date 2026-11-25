@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/api_service.dart';
 import '../services/bookorbit_admin.dart';
 import '../services/auth_tokens.dart';
+import '../services/browser_adapter.dart';
 import '../services/android_auto_service.dart';
 import '../services/book_search_index.dart';
 import '../services/carplay_service.dart';
@@ -433,6 +434,7 @@ class AuthProvider extends ChangeNotifier {
 
   /// Adopt a token pair rotated by Android Auto or the paired Wear app.
   Future<void> adoptCompanionTokens() async {
+    if (AppPlatform.isWeb) return;
     final server = _serverUrl;
     final username = _username;
     if (server == null || _accessToken == null) return;
@@ -545,6 +547,7 @@ class AuthProvider extends ChangeNotifier {
   /// Open the app signed out on [account], whose session already ended, to
   /// listen to what is on the phone (the sign-in screen's play downloads).
   void continueSignedOut(SavedAccount account) {
+    if (AppPlatform.isWeb) return;
     _serverUrl = account.serverUrl;
     _username = account.username;
     _userId = account.userId;
@@ -563,6 +566,38 @@ class AuthProvider extends ChangeNotifier {
   /// Try to restore a saved session from SharedPreferences.
   /// If the server is unreachable, still restore credentials so offline mode works.
   Future<void> tryRestoreSession() async {
+    if (AppPlatform.isWeb) {
+      _isLoading = true;
+      final prefs = await SharedPreferences.getInstance();
+      _serverUrl = prefs.getString('server_url');
+      _backend = ServerBackend.loadActive(prefs);
+      final label = prefs.getString('token') ?? '';
+      _customHeaders = {};
+      _useLocalServer = false;
+      _localServerEnabled = false;
+      _accessToken = null;
+      _refreshToken = null;
+      try {
+        if (_serverUrl == null || !BrowserAdapter.isSessionLabel(label)) return;
+        final api = ApiService.forSession(backend: _backend, baseUrl: _serverUrl!, token: label);
+        final me = await api.getMe();
+        if (me != null) {
+          final tokens = AuthTokens.fromResponse({'user': me}, browser: true);
+          _accessToken = label;
+          _refreshToken = tokens.refreshToken;
+          _isLegacyToken = false;
+          _userJson = me;
+          _username = me['username'] as String?;
+          _userId = me['id'] as String?;
+        }
+      } catch (_) {
+        _errorMessage = 'Session unavailable. Sign in again.';
+      } finally {
+        _isLoading = false;
+        notifyListeners();
+      }
+      return;
+    }
     final sw = Stopwatch()..start();
     debugPrint('[Auth] tryRestoreSession started');
     _isLoading = true;
@@ -805,6 +840,11 @@ class AuthProvider extends ChangeNotifier {
     String? magicLink,
     AppLocalizations? l,
   }) async {
+    final selectedServerUrl = serverUrl;
+    if (AppPlatform.isWeb) {
+      customHeaders = const {};
+      magicLink = null;
+    }
     _accountGen++;
     _errorMessage = null;
     _needsNewBookOrbitPassword = false;
@@ -812,7 +852,7 @@ class AuthProvider extends ChangeNotifier {
     final url = normalizeServerUrl(serverUrl);
 
     // Check server reachability
-    final reachable = await ApiService.pingServer(
+    final reachable = AppPlatform.isWeb || await ApiService.pingServer(
       url,
       customHeaders: customHeaders,
       backend: backend,
@@ -831,7 +871,7 @@ class AuthProvider extends ChangeNotifier {
             customHeaders: customHeaders,
           )
         : await ApiService.login(
-            serverUrl: url,
+            serverUrl: AppPlatform.isWeb ? selectedServerUrl : url,
             username: username,
             password: password,
             customHeaders: customHeaders,
@@ -850,6 +890,14 @@ class AuthProvider extends ChangeNotifier {
       return false;
     }
     if (result == null) {
+      if (AppPlatform.isWeb) {
+        _errorMessage = statusCode == 400
+            ? 'Server URL is invalid or blocked by the server destination policy. Use HTTPS; private servers require operator approval.'
+            : statusCode == 401 ? 'Invalid username or password'
+            : statusCode == 429 ? 'Too many sign-in attempts. Try again later.'
+            : 'Unable to sign in. Check the server address and its destination policy.';
+        return false;
+      }
       _errorMessage = statusCode == 401
           ? (l?.authInvalidUsernameOrPassword ?? 'Invalid username or password')
           : await _wrongServerTypeMessage(url, backend, customHeaders, l) ??
@@ -873,8 +921,9 @@ class AuthProvider extends ChangeNotifier {
     _useLocalServer = false;
     _backend = backend;
     // Prefer the JWTs returned inside user by current servers, while accepting
+
     // the top-level shape and legacy token used by older servers.
-    final tokens = AuthTokens.fromResponse(result);
+    final tokens = AuthTokens.fromResponse(result, browser: AppPlatform.isWeb);
     if (tokens.token == null) {
       _errorMessage =
           l?.authUnexpectedServerResponse ?? 'Unexpected server response';
@@ -908,6 +957,7 @@ class AuthProvider extends ChangeNotifier {
     await _persistEreaderDevices();
 
     // Try to get version from login response first, fall back to /status
+    if (AppPlatform.isWeb) _serverVersion = null;
     final loginVersion =
         result['serverVersion'] as String? ??
         (_serverSettings?['version'] as String?);
@@ -1017,6 +1067,7 @@ class AuthProvider extends ChangeNotifier {
     ServerBackend backend = ServerBackend.audiobookshelf,
     AppLocalizations? l,
   }) async {
+    if (AppPlatform.isWeb) { _errorMessage = 'Use username and password on this site.'; return false; }
     _accountGen++;
     _errorMessage = null;
 
@@ -1121,6 +1172,7 @@ class AuthProvider extends ChangeNotifier {
     ServerBackend backend = ServerBackend.audiobookshelf,
     AppLocalizations? l,
   }) async {
+    if (AppPlatform.isWeb) { _errorMessage = 'Use username and password on this site.'; return false; }
     _errorMessage = null;
 
     final url = normalizeServerUrl(serverUrl);
@@ -1137,7 +1189,7 @@ class AuthProvider extends ChangeNotifier {
     _serverUrl = url;
     _useLocalServer = false;
     _backend = backend;
-    final tokens = AuthTokens.fromResponse(result);
+    final tokens = AuthTokens.fromResponse(result, browser: AppPlatform.isWeb);
     if (tokens.token == null) {
       _errorMessage =
           l?.authSsoUnexpectedResponse ?? 'SSO returned an unexpected response';
@@ -1294,6 +1346,7 @@ class AuthProvider extends ChangeNotifier {
   /// hold up a launch or an account switch; the health check re-probes every
   /// minute, so a false offline corrects itself.
   Future<bool> _pingServers(String remoteUrl, Stopwatch sw) async {
+    if (AppPlatform.isWeb) return true; // Only the selected cookie route may contact upstream.
     if (_localServerEnabled && _localServerUrl.isNotEmpty) {
       final connectivity = await Connectivity().checkConnectivity();
       debugPrint(
@@ -1441,6 +1494,7 @@ class AuthProvider extends ChangeNotifier {
     bool revokeServerSession = false,
     bool allDevices = false,
   }) async {
+    if (AppPlatform.isWeb) { revokeServerSession = true; allDevices = false; }
     if (revokeServerSession) await adoptCompanionTokens();
     _accountGen++;
     _signedOut = false;
@@ -1537,6 +1591,7 @@ class AuthProvider extends ChangeNotifier {
   /// Stops playback, swaps credentials, and notifies listeners so the
   /// app reloads with the new user's data.
   Future<bool> switchToAccount(SavedAccount account) async {
+    if (AppPlatform.isWeb && !BrowserAdapter.isSessionLabel(account.token)) return false;
     if (account.token.isEmpty) return false;
     final gen = ++_accountGen;
     await adoptCompanionTokens();
@@ -1561,6 +1616,7 @@ class AuthProvider extends ChangeNotifier {
     final selected = UserAccountService().switchTo(
       account.serverUrl,
       account.username,
+      backend: account.backend,
     );
     if (selected == null) return false;
     _startOnAbsorbingAfterAccountChange = true;
@@ -1728,6 +1784,7 @@ class AuthProvider extends ChangeNotifier {
     String newServerUrl,
     Map<String, String> customHeaders,
   ) async {
+    if (AppPlatform.isWeb) return false;
     final url = normalizeServerUrl(newServerUrl);
     if (url.isEmpty) return false;
     final headersUnchanged =

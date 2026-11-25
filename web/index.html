@@ -30,6 +30,7 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="assets/assets/icon/app_icon.png"/>
 
+  <script src="readalong.js"></script>
   <title>Absorb</title>
   <link rel="manifest" href="manifest.json">
   <style>
@@ -115,6 +116,7 @@
       display: none;
     }
 
+    #absorb-loading.is-slow .absorb-loading-help,
     #absorb-loading.is-stalled .absorb-loading-help {
       display: block;
     }
@@ -135,7 +137,7 @@
       <div class="absorb-loading-spinner" aria-hidden="true"></div>
       <span class="absorb-loading-label">Loading Absorb</span>
       <div class="absorb-loading-help">
-        <p>Absorb couldn’t finish loading. The server may still be starting.</p>
+        <p>Absorb is still loading. This is taking longer than usual. You can wait or retry.</p>
         <button class="absorb-loading-retry" type="button">Reload</button>
       </div>
     </div>
@@ -143,24 +145,36 @@
   <script>
     const loadingShell = document.getElementById('absorb-loading');
     const loadingLabel = loadingShell?.querySelector('.absorb-loading-label');
+    const loadingHelp = loadingShell?.querySelector('.absorb-loading-help p');
     const stalledTimer = window.setTimeout(() => {
-      loadingShell?.classList.add('is-stalled');
-      if (loadingLabel) loadingLabel.textContent = 'Absorb could not finish loading';
+      loadingShell?.classList.add('is-slow');
+      if (loadingLabel) loadingLabel.textContent = 'Absorb is still loading; taking longer than usual';
     }, 45000);
 
     loadingShell?.querySelector('.absorb-loading-retry')?.addEventListener('click', () => {
       window.location.reload();
     });
 
-    window.addEventListener('error', (event) => {
-      if (event.target instanceof HTMLScriptElement) {
+    const onScriptError = (event) => {
+      if (!(event.target instanceof HTMLScriptElement) || !event.target.src) return;
+      const scriptUrl = new URL(event.target.src, document.baseURI);
+      const appUrl = new URL('.', document.baseURI);
+      const scriptPath = scriptUrl.pathname.slice(appUrl.pathname.length);
+      if (scriptUrl.origin === appUrl.origin &&
+          scriptUrl.pathname.startsWith(appUrl.pathname) &&
+          /^(flutter_bootstrap\.js|main\.dart\.(js|mjs)|canvaskit\/(?:chromium\/)?canvaskit\.js|canvaskit\/skwasm(?:_st|_heavy)?\.js)$/.test(scriptPath)) {
+        window.clearTimeout(stalledTimer);
         loadingShell?.classList.add('is-stalled');
-        if (loadingLabel) loadingLabel.textContent = 'Absorb could not finish loading';
+        const message = `A required app script failed to load (${scriptPath.split('/').pop()}). Reload to retry.`;
+        if (loadingLabel) loadingLabel.textContent = message;
+        if (loadingHelp) loadingHelp.textContent = message;
       }
-    }, true);
+    };
+    window.addEventListener('error', onScriptError, true);
 
     window.addEventListener('flutter-first-frame', () => {
       window.clearTimeout(stalledTimer);
+      window.removeEventListener('error', onScriptError, true);
       loadingShell?.remove();
     }, {once: true});
   </script>

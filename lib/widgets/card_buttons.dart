@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'bookorbit_web_access.dart';
 import '../tv/tv_focus_ring.dart';
 import 'remote_ok.dart';
 import 'remote_tap.dart';
+import '../web_tesla/tesla_mode.dart';
 import 'glass_look.dart';
 import 'expressive.dart';
 import 'package:flutter/services.dart';
@@ -770,6 +772,24 @@ class _CardSpeedButtonInlineState extends State<CardSpeedButtonInline> {
       builder: (context, _) {
         final castNow = widget.itemId != null && cast.isCasting && cast.castingItemId == widget.itemId;
         final speedNow = castNow ? cast.castSpeed : (widget.isActive ? widget.player.speed : _savedSpeed);
+        final tesla = TeslaMode.of(context);
+        void openSpeed() => showAdaptiveActionMenu(
+          context: context, backgroundColor: Colors.transparent, useSafeArea: true,
+          isScrollControlled: tesla,
+          builder: (_) {
+            final sheet = CardSpeedSheet(player: widget.player, accent: widget.accent,
+              itemId: widget.itemId, libraryId: widget.libraryId);
+            return tesla ? SingleChildScrollView(child: sheet) : sheet;
+          });
+        if (tesla) {
+          return OutlinedButton(
+            key: const ValueKey('tesla-speed'),
+            style: OutlinedButton.styleFrom(minimumSize: const Size(48, 56)),
+            onPressed: openSpeed,
+            child: Text('${AppLocalizations.of(context)!.speed} ${speedNow.toStringAsFixed(2)}x',
+              textAlign: TextAlign.center),
+          );
+        }
         final isDefaultSpeed = (speedNow - 1.0).abs() < 0.01;
         final Widget content;
         if (widget.compact) {
@@ -792,11 +812,7 @@ class _CardSpeedButtonInlineState extends State<CardSpeedButtonInline> {
           );
         }
         return Pressable(
-          onTap: () {
-            showAdaptiveActionMenu(context: context, backgroundColor: Colors.transparent,
-              useSafeArea: true,
-              builder: (ctx) => CardSpeedSheet(player: widget.player, accent: widget.accent, itemId: widget.itemId, libraryId: widget.libraryId));
-          },
+          onTap: openSpeed,
           child: Container(
             height: h,
             decoration: BoxDecoration(

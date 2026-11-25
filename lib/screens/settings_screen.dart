@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'stats_screen.dart';
+import '../web_tesla/tesla_mode.dart';
+import '../web_tesla/source_license_setting.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -2084,6 +2086,8 @@ class SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 8),
 
                 // ── Tips & Tricks ──
+                if (AppPlatform.isWeb) const TeslaModeSetting(),
+                if (AppPlatform.isWeb) const SourceLicenseSetting(),
                 if (!isDesktopSettings)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -6234,7 +6238,7 @@ class SettingsScreenState extends State<SettingsScreen> {
       ),
     );
     if (confirmed != true || !context.mounted) return;
-    await UserAccountService().removeAccount(account.serverUrl, account.username);
+    await UserAccountService().removeAccount(account.serverUrl, account.username, backend: account.backend);
     if (context.mounted) setState(() {});
   }
 

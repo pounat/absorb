@@ -1,4 +1,6 @@
 import 'dart:async';
+import '../web_playback/web_playback_session.dart';
+import '../web_playback/queue_handover_policy.dart';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -1076,7 +1078,8 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
   }
 
   @override
-  Future<void> setSpeed(double speed) => _player.setSpeed(speed);
+  Future<void> setSpeed(double speed) => kIsWeb && _service != null
+      ? _service!.setSpeed(speed) : _player.setSpeed(speed);
 
   @override
   Future<dynamic> customAction(
@@ -2020,6 +2023,7 @@ class AudioPlayerService extends ChangeNotifier {
   }
 
   void _maybePreloadNextBook() {
+    if (!allowsNativeCrossBookHandover(isWeb: kIsWeb)) return;
     if (_nextBookPreloading) return;
     if (_preloadedNextBook != null) return;
     if (_activeConcatSource == null) return;
@@ -2237,6 +2241,7 @@ class AudioPlayerService extends ChangeNotifier {
   }
 
   void _onAutoQueueAdvanced() {
+    if (!allowsNativeCrossBookHandover(isWeb: kIsWeb)) return;
     final next = _preloadedNextBook;
     if (next == null) return;
     if (_autoQueueAdvancing) return;
@@ -2971,6 +2976,10 @@ class AudioPlayerService extends ChangeNotifier {
 
   Future<void> _seekAbsolute(double absoluteSeconds) async {
     if (_player == null) return;
+    if (kIsWeb) {
+      await _webSeekAbsolute(absoluteSeconds);
+      return;
+    }
     final swap = _pauseSwap;
     if (swap != null) {
       _pauseSwap = null;
@@ -3615,6 +3624,7 @@ class AudioPlayerService extends ChangeNotifier {
   /// Re-activating the audio session and re-pushing handler state recovers it.
   static void onAppBackgrounded() {
     _instance._isBackgrounded = true;
+    if (kIsWeb) unawaited(_instance._webCheckpoint(_instance.position, force: true));
     debugPrint('[ClickDebug] App backgrounded');
     if (AppPlatform.isIOS) _trimMemoryForBackground();
   }
@@ -3720,6 +3730,11 @@ class AudioPlayerService extends ChangeNotifier {
   static Future<void> onAppForegrounded() async {
     final service = _instance;
     service._isBackgrounded = false;
+    if (kIsWeb) {
+      await service._webCheckpoint(service.position, force: true);
+      service.notifyListeners();
+      return;
+    }
     _lastForegroundAt = DateTime.now();
     if (AppPlatform.isIOS) unawaited(_logForegroundMemory());
     // Relative timing on foreground arrival is the second half of the
@@ -3875,6 +3890,18 @@ class AudioPlayerService extends ChangeNotifier {
   }) async {
     _pauseRequested = false;
     _playFromUi = fromUi;
+    if (kIsWeb && _isLoadingNewItem && _currentItemId == itemId &&
+        _currentEpisodeId == episodeId) return null;
+    if (kIsWeb && webPlaybackRecoveryRequired && !_webRecoveryInProgress &&
+        _currentItemId == itemId && _currentEpisodeId == episodeId) {
+      if (fromUi) await recoverWebPlayback();
+      return webPlaybackRecoveryMessage;
+    }
+    if (kIsWeb && _currentItemId == itemId && _currentEpisodeId == episodeId &&
+        _playbackSessionId != null && !forceStartTime) {
+      await play(fromUi: fromUi);
+      return webPlaybackRecoveryRequired ? webPlaybackRecoveryMessage : null;
+    }
     if (_handler == null) {
       debugPrint('[Player] Handler not yet initialized, waiting…');
       // If startup never got as far as init, this would wait forever and the
@@ -3906,6 +3933,13 @@ class AudioPlayerService extends ChangeNotifier {
     _beginAdvanceBuffering();
 
     final playbackGeneration = ++_playbackGeneration;
+    if (kIsWeb) {
+      final owner = _webSession;
+      await _webCheckpoint(position, force: true);
+      if (_startSuperseded(playbackGeneration)) return null;
+      owner?.retire();
+      _webCheckpointTimer?.cancel();
+    }
 
     // Stop old audio immediately so it doesn't keep playing while the new
     // source is loading (avoids briefly hearing the previous book).
@@ -4051,7 +4085,11 @@ class AudioPlayerService extends ChangeNotifier {
 
     // Check if downloaded — play locally
     String? result;
-    if (episodeId == null && !api.isBookOrbit && NarratedBooks.contains(itemId) &&
+    if (kIsWeb) {
+      result = await _playFromServer(api, itemId, title, author, coverUrl,
+          totalDuration, chapters, startTime,
+          forceStartTime: forceStartTime, generation: playbackGeneration);
+    } else if (episodeId == null && !api.isBookOrbit && NarratedBooks.contains(itemId) &&
         !_downloadService.isDownloaded(progressKey)) {
       // An Audiobookshelf EPUB that reads itself aloud: its audio files play
       // straight out of the EPUB on the server, and otherwise like a download.
@@ -5242,6 +5280,23 @@ class AudioPlayerService extends ChangeNotifier {
     // start had set, which is how one episode got two sessions.
     final episodeId = _currentEpisodeId;
 
+    // Do not even open a browser session without an authoritative read. The
+    // native cache/race paths deliberately retain their existing semantics.
+    if (kIsWeb) {
+      try {
+        await api.getWebItemProgress(
+            episodeId == null ? itemId : '$itemId-$episodeId');
+      } catch (_) {
+        if (_startSuperseded(gen)) return null;
+        _clearState();
+        return 'Could not read server progress. Press Play to retry.';
+      }
+      if (_startSuperseded(gen)) {
+        return _abandonStart(api, preFetchedSession?['id'] as String?,
+            'after reading browser progress');
+      }
+    }
+
     // Use episode endpoint if this is a podcast episode
     final sessionData = preFetchedSession ??
         (episodeId != null
@@ -5266,6 +5321,7 @@ class AudioPlayerService extends ChangeNotifier {
 
     _playbackSessionId = ownSessionId;
     _captureNowPlayingCredits(sessionData);
+    if (kIsWeb) _webServerPosition = (sessionData['currentTime'] as num?)?.toDouble() ?? 0;
     // Sessions know their library; adopt it when the caller couldn't provide
     // one so per-library skip amounts work for lean/merged shelf items.
     final sessionLibId = sessionData['libraryId'] as String?;
@@ -5371,7 +5427,7 @@ class AudioPlayerService extends ChangeNotifier {
 
     // Update totalDuration from session if it was unknown (e.g. podcast episodes
     // where the embedded recentEpisode didn't include a duration field)
-    if (totalDuration <= 0) {
+    if (kIsWeb || totalDuration <= 0) {
       final sessionDur = (sessionData['duration'] as num?)?.toDouble() ?? 0;
       if (sessionDur > 0) {
         totalDuration = sessionDur;
@@ -5389,7 +5445,27 @@ class AudioPlayerService extends ChangeNotifier {
     final serverPos = (sessionData['currentTime'] as num?)?.toDouble() ?? 0;
     final pKey = episodeId != null ? '$itemId-$episodeId' : itemId;
     final localTs = await _progressSync.getSavedTimestamp(pKey);
-    if (forceStartTime) {
+
+    if (kIsWeb) {
+      // A finished replay starts at zero but its progress row still holds the
+      // end. Fence writes against that row; otherwise latest progress wins.
+      Map<String, dynamic>? webProgress;
+      try {
+        webProgress = await api.getWebItemProgress(pKey);
+      } catch (_) {
+        if (ownSessionId != null) await api.closePlaybackSession(ownSessionId);
+        if (_startSuperseded(gen)) return null;
+        _clearState();
+        return 'Could not read server progress. Press Play to retry.';
+      }
+      if (_startSuperseded(gen)) {
+        return _abandonStart(api, ownSessionId, 'after browser reconciliation');
+      }
+      _webServerPosition = (webProgress?['currentTime'] as num?)?.toDouble() ?? 0;
+      if (!forceStartTime) {
+        startTime = WebPlaybackSession.resumePosition(serverPos, webProgress);
+      }
+    } else if (forceStartTime) {
       debugPrint(
         '[Player] Forced start time: ${startTime}s — skipping server/local position comparison',
       );
@@ -6309,6 +6385,12 @@ class AudioPlayerService extends ChangeNotifier {
   }
 
   void _clearState() {
+    if (kIsWeb) {
+      _webSession?.retire();
+      _webSession = null;
+      _webCheckpointTimer?.cancel();
+      _webStateSub?.cancel();
+    }
     _pausedAtS = null;
     _currentItemId = null;
     _currentEpisodeId = null;
@@ -6517,6 +6599,12 @@ class AudioPlayerService extends ChangeNotifier {
   /// exponential back-off (1s, 2s, 4s).  If the item has been downloaded in
   /// the meantime, falls back to local files automatically.
   Future<void> _attemptStreamRetry(Object error) async {
+    if (kIsWeb) {
+      // Media/session errors must not silently open competing sessions.
+      _webSession?.recoveryRequired = true;
+      await _webCheckpoint(position, force: true);
+      return;
+    }
     if (_retryInProgress) return;
     if (_currentItemId == null || _api == null) return;
     if (_streamRetryCount >= _maxStreamRetries) {
@@ -6645,6 +6733,7 @@ class AudioPlayerService extends ChangeNotifier {
   }
 
   void _setupSync() {
+    if (kIsWeb) _setupWebSync();
     _syncSub?.cancel();
     _completionSub?.cancel();
     _nativeAutoAdvanceSub?.cancel();
@@ -6922,6 +7011,7 @@ class AudioPlayerService extends ChangeNotifier {
         }
 
         // Save locally every 5 seconds (always works, even offline)
+        if (kIsWeb) return; // Browser timer owns checkpoints; no native replay.
         if (sec % 5 == 0 && sec != _lastSyncSecond && _currentItemId != null) {
           _lastSyncSecond = sec;
           _saveProgressLocal(absolutePos);
@@ -7208,6 +7298,12 @@ class AudioPlayerService extends ChangeNotifier {
   }
 
   Future<void> _onPlaybackComplete({bool userRequested = false}) async {
+    // BookOrbit playlists can switch the index before the shared HTML audio
+    // element has loaded the next resource. Old local time + new offset is
+    // not book completion; only the engine's terminal event is authoritative.
+    if (kIsWeb && _api?.isBookOrbit == true && !userRequested &&
+        _player?.processingState != ProcessingState.completed) return;
+    final webGeneration = _playbackGeneration;
     // Alpha: captures completion path choice for GH #186 (book restart bug).
     // Re-entry attempts are logged too so we can see if completion fires
     // multiple times from different signals (processingState, position-jump,
@@ -7327,7 +7423,11 @@ class AudioPlayerService extends ChangeNotifier {
     // auto-advance — the local save below is the source of truth).
     final itemId = _currentItemId;
     final episodeId = _currentEpisodeId;
-    if (itemId != null && _api != null) {
+    if (kIsWeb) {
+      await _finishWebPlayback();
+      if (_startSuperseded(webGeneration)) return;
+    }
+    if (!kIsWeb && itemId != null && _api != null) {
       final api = _api!;
       final dur = _totalDuration;
       unawaited(() async {
@@ -7363,7 +7463,7 @@ class AudioPlayerService extends ChangeNotifier {
     }
 
     // Close the playback session (fire-and-forget)
-    if (_playbackSessionId != null && _api != null) {
+    if (!kIsWeb && _playbackSessionId != null && _api != null) {
       final api = _api!;
       final sessionId = _playbackSessionId!;
       _logEvent(PlaybackEventType.sessionEnd, detail: 'book finished');
@@ -7445,6 +7545,165 @@ class AudioPlayerService extends ChangeNotifier {
     // _logEvent(PlaybackEventType.syncLocal); // too noisy for history
   }
 
+  // Browser session state belongs to this singleton, never a route/widget.
+  final Stopwatch _webClock = Stopwatch()..start();
+  WebPlaybackSession? _webSession;
+  double _webServerPosition = 0;
+  Timer? _webCheckpointTimer;
+  StreamSubscription? _webStateSub;
+  bool _webSeeking = false;
+  bool _webRecoveryInProgress = false;
+  String? _webRecoveryMessage;
+  bool get webPlaybackRecoveryRequired => _webSession?.recoveryRequired ?? false;
+  String? get webPlaybackRecoveryMessage => _webRecoveryMessage;
+
+  void _sampleWebPlayback(Duration pos) {
+    _webSession?.sample(pos.inMilliseconds / 1000.0,
+        audible: !_webSeeking && _player?.playing == true &&
+            _player?.processingState == ProcessingState.ready &&
+            (_player?.volume ?? 0) > 0,
+        rate: _player?.speed ?? 1);
+  }
+
+  void _setupWebSync() {
+    _webCheckpointTimer?.cancel();
+    _webStateSub?.cancel();
+    _webSession?.retire();
+    final api = _api;
+    final id = _playbackSessionId;
+    if (api == null || id == null) return;
+    final duration = _totalDuration;
+    _webRecoveryMessage = null;
+    final key = _mediaItemKey;
+    late final WebPlaybackSession owner;
+    owner = WebPlaybackSession(
+      nativeSessionSync: !api.isBookOrbit,
+      onWarning: () => _showAbsWebSyncWarning(owner),
+      clock: () => _webClock.elapsed,
+      serverPosition: _webServerPosition,
+      readProgress: () => api.getWebItemProgress(key),
+      send: (pos, listened) {
+        return api.syncPlaybackSessionStatus(id,
+          currentTime: pos, duration: duration, timeListened: listened);
+      },
+    );
+    _webSession = owner;
+    _sampleWebPlayback(position);
+    _webStateSub = _player?.playerStateStream.listen((state) {
+      _sampleWebPlayback(position);
+      if (!state.playing || state.processingState != ProcessingState.ready) {
+        unawaited(_webCheckpoint(position, force: true));
+      }
+    });
+    _webCheckpointTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _sampleWebPlayback(position);
+      if (_player?.playing == true) unawaited(_webCheckpoint(position));
+    });
+  }
+
+  void _showAbsWebSyncWarning(WebPlaybackSession owner) {
+    if (!identical(owner, _webSession) || _api?.isBookOrbit != false) return;
+    final message = owner.recoveryRequired
+        ? 'Playback is continuing, but saving is suspended. Press Play to read the latest server position and recover this session. Unconfirmed listening time will not be replayed.'
+        : 'Playback is continuing, but progress could not be confirmed after four attempts. Unconfirmed listening time will not be replayed.';
+    if (owner.recoveryRequired) _webRecoveryMessage = message;
+    notifyListeners();
+    showNavigatorOverlayToast(rootNavigatorKey.currentState, message);
+  }
+
+  Future<void> _webCheckpoint(Duration pos, {bool force = false}) async {
+    // Do not persist that same BookOrbit source-transition position either.
+    if (_api?.isBookOrbit == true &&
+        _player?.processingState == ProcessingState.loading) return;
+    final owner = _webSession;
+    if (owner == null || _currentItemId == null || _webSeeking || _isLoadingNewItem) return;
+    _sampleWebPlayback(pos);
+    // Token-free position only. No queued time or session capability is stored.
+    await _saveProgressLocal(pos);
+    await owner.checkpoint(force: force);
+    if (owner.nativeSessionSync) return; // ABS warnings never own media state.
+    if (!identical(owner, _webSession) || !owner.recoveryRequired ||
+        _webRecoveryMessage != null) return;
+    _webRecoveryMessage = owner.failureStatus == 404
+        ? 'Playback session expired. Press Play to read the latest server position and resume.'
+        : 'Playback sync needs recovery. Press Play to read the latest server position and resume. Unconfirmed listening time will not be replayed.';
+    final message = _webRecoveryMessage!;
+    await _player?.pause();
+    if (!identical(owner, _webSession)) return;
+    notifyListeners();
+    showNavigatorOverlayToast(rootNavigatorKey.currentState, message);
+  }
+
+  Future<void> _webSeekAbsolute(double seconds) async {
+    final player = _player;
+    if (player == null) return;
+    _sampleWebPlayback(position);
+    _webSeeking = true;
+    // Fence all position events during the discontinuity, including chapter skips.
+    _webSession?.sample(position.inMilliseconds / 1000.0, audible: false, rate: speed);
+    try {
+      var index = 0;
+      for (var i = 0; i < _trackStartOffsets.length - 1; i++) {
+        if (seconds >= _trackStartOffsets[i]) index = i;
+      }
+      final offset = _trackStartOffsets.isEmpty ? 0.0 : _trackStartOffsets[index];
+      _currentTrackIndex = index;
+      await player.seek(Duration(milliseconds: ((seconds - offset).clamp(0, double.infinity) * 1000).round()),
+          index: _trackStartOffsets.length > 1 ? index : null);
+      if (_pausedAtS != null) _pausedAtS = seconds;
+    } finally {
+      _webSeeking = false;
+      _sampleWebPlayback(position);
+    }
+    await _webCheckpoint(position, force: true);
+    notifyListeners();
+  }
+
+  Future<void> _finishWebPlayback() async {
+    final owner = _webSession;
+    final api = _api;
+    final id = _playbackSessionId;
+    await _webCheckpoint(position, force: true);
+    if (api != null && id != null) {
+      await owner?.close(() => api.closePlaybackSession(id));
+    }
+    if (identical(owner, _webSession)) _playbackSessionId = null;
+  }
+
+  /// Explicit user recovery only. Server position wins unless the caller exposes
+  /// and the user selects the local-checkpoint alternative. No lost delta replay.
+  Future<bool> recoverWebPlayback({bool useLocalCheckpoint = false}) async {
+    if (!kIsWeb || _webRecoveryInProgress) return false;
+    final owner = _webSession;
+    final api = _api;
+    final item = _currentItemId;
+    final id = _playbackSessionId;
+    if (owner == null || api == null || item == null || id == null) return false;
+    _webRecoveryInProgress = true;
+    try {
+      await _player?.pause();
+      final key = _currentEpisodeId == null ? item : '$item-$_currentEpisodeId';
+      final resume = await owner.recoveryPosition(
+          readProgress: () => api.getWebItemProgress(key),
+          readSession: () => api.getPlaybackSession(id),
+          useLocalCheckpoint: useLocalCheckpoint);
+      if (resume == null || !identical(owner, _webSession)) return false;
+      // Avoid duplicate-item routing while opening one explicit fresh session.
+      _playbackSessionId = null;
+      final error = await playItem(api: api, itemId: item,
+          episodeId: _currentEpisodeId, episodeTitle: _currentEpisodeTitle,
+          libraryId: _currentLibraryId, title: _currentTitle ?? '',
+          author: _currentAuthor ?? '', coverUrl: _currentCoverUrl,
+          totalDuration: _totalDuration, chapters: _chapters,
+          startTime: resume, forceStartTime: useLocalCheckpoint, fromUi: true);
+      return error == null;
+    } catch (_) {
+      return false; // Still blocked; another explicit press may retry the reads.
+    } finally {
+      _webRecoveryInProgress = false;
+    }
+  }
+
   DateTime _lastServerSync = DateTime.now();
   // Separate from the server-sync clock: drives the every-5s durable accrual so
   // a kill loses at most one tick of listening, independent of how often we POST.
@@ -7523,6 +7782,10 @@ class AudioPlayerService extends ChangeNotifier {
   /// it stays correct at any speed and excludes paused spans (no ticks fire
   /// while paused; [play] restarts the clock).
   Future<void> _accrueListening(Duration absolutePos) async {
+    if (kIsWeb) {
+      _sampleWebPlayback(absolutePos);
+      return;
+    }
     if (_currentItemId == null) return;
     final now = DateTime.now();
     final delta = now.difference(_lastAccrual).inSeconds;
@@ -7565,6 +7828,7 @@ class AudioPlayerService extends ChangeNotifier {
   }
 
   Future<void> _syncToServer(Duration pos, {int? timeListenedOverride}) async {
+    if (kIsWeb) return _webCheckpoint(pos, force: true);
     if (_api == null || _playbackSessionId == null) return;
     if (_isCachedStartReconcilePending) return;
     final ct = pos.inMilliseconds / 1000.0;
@@ -7658,6 +7922,7 @@ class AudioPlayerService extends ChangeNotifier {
 
   /// Try to start a new server session when the current one becomes invalid.
   Future<void> _recoverSession(double currentTime, int lostTimeListened) async {
+    if (kIsWeb) return; // Never replay lost increments.
     if (_api == null || _currentItemId == null) return;
     try {
       final sessionData = _currentEpisodeId != null
@@ -7769,6 +8034,10 @@ class AudioPlayerService extends ChangeNotifier {
   static const _playInFlightCap = Duration(seconds: 30);
 
   Future<void> _playNow({String? logDetail, bool fromUi = false}) async {
+    if (kIsWeb && webPlaybackRecoveryRequired) {
+      if (fromUi) await recoverWebPlayback();
+      return;
+    }
     debugPrint(
       '[Service] play() called — lastPause=${_lastPauseTime != null} fromUi=$fromUi',
     );
@@ -8244,6 +8513,7 @@ class AudioPlayerService extends ChangeNotifier {
   /// Starts a session when we hold none; a held one is adopted through the
   /// pending upgrade. Returns whether the source was rebuilt.
   Future<bool> _rebuildSourceOnDeadSession({required bool resumeAfter}) async {
+    if (kIsWeb) return false; // Explicit recovery alone may open a replacement.
     if (_api == null || _currentItemId == null || _localSessionMode) {
       return false;
     }
@@ -8290,6 +8560,7 @@ class AudioPlayerService extends ChangeNotifier {
 
   /// Progress-endpoint sync for a tick whose session sync could not be used.
   Future<void> _syncProgressWithoutSession(Duration pos) async {
+    if (kIsWeb) return;
     if (_api == null || _currentItemId == null) return;
     final key = _currentEpisodeId != null
         ? '$_currentItemId-$_currentEpisodeId'
@@ -8310,6 +8581,7 @@ class AudioPlayerService extends ChangeNotifier {
   /// touched here: once audio is running we never seek it out from under the
   /// listener (see play()).
   void _resumeServerSync() async {
+    if (kIsWeb) return;
     if (_api == null || _currentItemId == null) return;
     if (_recreatingSession) return;
     if (_playbackSessionId != null) return;
@@ -8392,6 +8664,10 @@ class AudioPlayerService extends ChangeNotifier {
     await _saveProgressLocal(pos);
 
     // Check manual offline before syncing
+    if (kIsWeb) {
+      await _webCheckpoint(pos, force: true);
+      return; // Keep the real session across pause and route changes.
+    }
     final manualOffline =
         (_prefs ?? await SharedPreferences.getInstance()).getBool(
           'manual_offline_mode',
@@ -8645,8 +8921,10 @@ class AudioPlayerService extends ChangeNotifier {
 
   Future<void> setSpeed(double s) async {
     if (_player == null) return;
+    if (kIsWeb) _sampleWebPlayback(position);
     debugPrint('[Service] setSpeed(${s}x) — before: ${_player!.speed}x');
     await _player!.setSpeed(s);
+    if (kIsWeb) _sampleWebPlayback(position);
     debugPrint('[Service] setSpeed done — after: ${_player!.speed}x');
     _logEvent(
       PlaybackEventType.speedChange,
@@ -8685,6 +8963,11 @@ class AudioPlayerService extends ChangeNotifier {
   }
 
   Future<void> stop({bool keepSleepTimer = false}) async {
+    if (kIsWeb) {
+      final generation = _playbackGeneration;
+      await _finishWebPlayback();
+      if (_startSuperseded(generation)) return;
+    }
     _pauseStopTimer?.cancel();
     _pauseStopTimer = null;
     _endAdvanceBuffering();
@@ -8708,7 +8991,7 @@ class AudioPlayerService extends ChangeNotifier {
         ) ??
         false;
 
-    if (!manualOffline) {
+    if (!kIsWeb && !manualOffline) {
       // Try server sync. If stop() was called while already paused, we were
       // not playing in the interval since the last sync - pass timeListened=0
       // so the wall-clock diff doesn't inflate server listening stats.
@@ -8762,6 +9045,16 @@ class AudioPlayerService extends ChangeNotifier {
   /// Stop playback without saving progress — used by reset progress.
   Future<void> stopWithoutSaving() async {
     _endAdvanceBuffering();
+    if (kIsWeb) {
+      final generation = _playbackGeneration;
+      final api = _api;
+      final id = _playbackSessionId;
+      if (api != null && id != null) {
+        await _webSession?.close(() => api.closePlaybackSession(id));
+      }
+      if (_startSuperseded(generation)) return;
+      _playbackSessionId = null;
+    }
     // Close server session without syncing position
     if (_playbackSessionId != null && _api != null) {
       try {
@@ -8782,6 +9075,9 @@ class AudioPlayerService extends ChangeNotifier {
 
   @override
   void dispose() {
+    _webSession?.retire();
+    _webCheckpointTimer?.cancel();
+    _webStateSub?.cancel();
     _endAdvanceBuffering();
     _syncSub?.cancel();
     _bgSaveTimer?.cancel();
