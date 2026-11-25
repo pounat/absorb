@@ -49,13 +49,16 @@ class _BookOrbitReadAlongViewState extends State<BookOrbitReadAlongView> {
     try {
       final data = await selected.webReadAlong(widget.itemId);
       if (!mounted || mine != generation || !active) return;
-      if (data == null) throw StateError('This book has no native narrated EPUB.');
+      if (data == null) {
+        setState(() => error = 'Read Along needs a synchronized EPUB matching this audiobook, or an EPUB with native narration.');
+        return;
+      }
       overlay = data.overlay;item = data.item;
       host = js.callMethod(js.getProperty(html.window, 'AbsorbReadAlong'), 'create', [element, data.base, js.jsify(data.info)]);
       final first = playingThisBook ? (overlay!.clipAt(player.position.inMilliseconds / 1000) ?? data.initial ?? overlay!.clips.first) : (data.initial ?? overlay!.clips.first);
       await _show(first);
       if (mounted && active) setState(() {});
-    } catch (_) {if (mounted && mine == generation) setState(() => error = 'Read Along could not open this narrated EPUB. Sign in again if your session expired.');}
+    } catch (e) {if (mounted && mine == generation && active) setState(() => error = selected.webReadAlongFailure(e));}
   }
   Future<void> _show(OverlayClip clip) async {
     final h = host;if (h == null || !active) return;

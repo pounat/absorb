@@ -5621,15 +5621,58 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
   /// it in the reader). No request.
   bool knownNarrated(String bookId) => _narrations.containsKey(_key(bookId));
 
-  /// Read-only descriptor for the exact narrated EPUB used by the main player.
-  /// No audiobook scaling, transcription or progress mutation is performed here.
+  /// Static, non-sensitive diagnostics; never echo transport bodies or URLs.
+  String webReadAlongFailure(Object error) {
+    if (error is _BoHttpError && error.status == 401) {
+      return 'Your session expired. Sign in again to open Read Along.';
+    }
+    if (error is _BoHttpError && error.status == 403) {
+      return 'Read Along access to this book was denied.';
+    }
+    if (error is StateError || error is FormatException || error is TypeError) {
+      return 'Read Along could not validate this book’s timing or saved position. Nothing was reset.';
+    }
+    return 'Read Along could not load this book’s text or timing. Close and reopen to retry.';
+  }
+
+  /// Read-only descriptor for native EPUB narration or the native synchronized
+  /// companion EPUB. Reuses the mobile matching/timing policy; never changes audio.
   String get readAlongOwnerKey => _key('readalong');
   bool get readAlongOwnerActive => !kIsWeb || _webOwner == _webOwnerEpoch;
   Future<({MediaOverlay overlay, int fileId, Map<String, dynamic> info, Map<String, dynamic> item, String base, OverlayClip? initial})?> webReadAlong(String bookId) async {
     _checkWebOwner();
     final item = await getLibraryItem(bookId);
+    if (item == null) return null;
+    final media = item['media'] as Map<String, dynamic>;
+    final matching = media['readAlongEpub'] as Map?;
+    if (matching != null) {
+      final fileId = int.tryParse('${matching['fileId']}');
+      final overlay = await readAlongTimingsFor(bookId);
+      if (fileId == null || overlay == null) return null;
+      final info = await _boGet('/epub/$bookId/info', {'fileId': '$fileId'}) as Map<String, dynamic>;
+      // Read the audiobook's authoritative track-local CAS position, not an
+      // EPUB progress row. Do not update the player's cached revision on open.
+      final state = await _boGet('/audiobooks/$bookId/playback-state');
+      bookOrbitWebRevision(state);
+      OverlayClip? initial;
+      if (state != null) {
+        final position = (state as Map)['positionMs'];
+        if (position is! num || !position.isFinite || position < 0 || position != position.roundToDouble()) {
+          throw StateError('Invalid native audiobook position');
+        }
+        final manifest = await _manifest(bookId);
+        if (manifest == null || manifest['assets'] is! List ||
+            !(manifest['assets'] as List).whereType<Map>().any((a) => a['assetId'] == state['assetId'])) {
+          throw StateError('Invalid native audiobook asset');
+        }
+        initial = overlay.clipAt(BookOrbitMapper.absolutePosition(manifest, state.cast<String, dynamic>()));
+      }
+      _checkWebOwner();
+      return (overlay: overlay, fileId: fileId, info: info, item: item, initial: initial,
+        base: '$_v1/epub/$bookId/publication/$fileId/');
+    }
     final narration = await _narration(bookId);
-    if (item == null || narration == null) return null;
+    if (narration == null) return null;
     final info = await _boGet('/epub/$bookId/info', {'fileId': '${narration.fileId}'}) as Map<String, dynamic>;
     final progress = await _boGet('/books/$bookId/progress');
     if (progress is! List || progress.any((row) => row is! Map)) throw StateError('Invalid native narration progress');

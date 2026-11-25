@@ -812,7 +812,7 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     final readStatus = _displayReadStatus(isFinished);
     final providerBadges = auth.isBookOrbit ? _providerBadges() : const <Map<String, dynamic>>[];
 
-    final nativeWebReadAlong = kIsWeb && auth.isBookOrbit && media['narration'] != null;
+    final nativeWebReadAlong = kIsWeb && auth.isBookOrbit && (media['narration'] != null || media['readAlongEpub'] != null);
     final isEbookOnly = PlayerSettings.isEbookOnly(_item!);
     // Preview only makes sense before the book has been started. The 60s
     // grace means an accidental tap-and-close doesn't hide it forever. Check
