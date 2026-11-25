@@ -40,6 +40,7 @@ import 'services/home_widget_service.dart';
 import 'services/siri_service.dart';
 import 'services/narrated_books.dart';
 import 'services/read_listen_sync.dart';
+import 'services/linux_connectivity.dart';
 import 'services/windows_media_controls.dart';
 import 'services/log_service.dart';
 import 'services/quick_actions_service.dart';
@@ -261,6 +262,7 @@ void main(List<String> args) async {
   if (runWebViewTitleBarWidget(args)) return;
   if (!AppPlatform.isWeb) HttpOverrides.global = _CertOverrides();
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  if (AppPlatform.isLinux) await initializeLinuxConnectivity();
   ReadListenSync.instance.start();
   WindowsMediaControls.instance.start();
   BookOrbitApiService.placeReadingSpot = NarrationService.readingSpotSeconds;

@@ -2,15 +2,16 @@ name: All Platforms Release
 
 # Mirrors the `all-release` workflow in codemagic.yaml. Triggered manually via
 # `gh workflow run all-release.yml` or the Actions UI. Builds the github-flavor
-# APK, the playstore-flavor AAB, the iOS IPA and the Windows installer, uploads
-# all of them to the GitHub draft release, and pushes the IPA to TestFlight.
+# APK, the playstore-flavor AAB, the iOS IPA, the Windows installer and the
+# Linux packages, uploads them to the GitHub draft release and pushes the IPA
+# to TestFlight.
 #
 # These run in PARALLEL: a `prepare` job creates the draft up front, then the
-# two Android flavors (matrix, on ubuntu), the iOS IPA (on macOS) and the
-# Windows installer (on windows) build at the same time and each upload their
-# own artifact to that draft. Wall-clock is the slowest of them rather than
-# their sum. F-Droid is intentionally not built here — F-Droid's own servers
-# build it from the tagged source.
+# two Android flavors (matrix, on ubuntu), the iOS IPA (on macOS), the
+# Windows installer (on windows), and the Linux packages (on ubuntu) build at
+# the same time and each upload their own artifact to that draft. Wall-clock
+# is the slowest of them rather than their sum. F-Droid is intentionally not
+# built here — F-Droid's own servers build it from the tagged source.
 
 on:
   workflow_dispatch:
@@ -563,10 +564,19 @@ jobs:
           VERSION_TAG: ${{ needs.prepare.outputs.tag }}
         run: gh release upload "$VERSION_TAG" build/installer/*.exe --clobber
 
+  linux:
+    name: Linux packages
+    needs: prepare
+    uses: ./.github/workflows/linux-build.yml
+    with:
+      prerelease: ${{ inputs.prerelease }}
+      release_tag: ${{ needs.prepare.outputs.tag }}
+      release_basename: ${{ needs.prepare.outputs.fname }}
+
   # Single Discord ping once every platform finishes, success or fail.
   notify:
     name: Notify Discord (finished)
-    needs: [prepare, android, ios, windows, wear]
+    needs: [prepare, android, ios, windows, linux, wear]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -579,9 +589,10 @@ jobs:
           ANDROID_RESULT: ${{ needs.android.result }}
           IOS_RESULT: ${{ needs.ios.result }}
           WINDOWS_RESULT: ${{ needs.windows.result }}
+          LINUX_RESULT: ${{ needs.linux.result }}
           WEAR_RESULT: ${{ needs.wear.result }}
         run: |
-          if [ "$ANDROID_RESULT" = "success" ] && [ "$IOS_RESULT" = "success" ] && [ "$WINDOWS_RESULT" = "success" ] && [ "$WEAR_RESULT" = "success" ]; then
+          if [ "$ANDROID_RESULT" = "success" ] && [ "$IOS_RESULT" = "success" ] && [ "$WINDOWS_RESULT" = "success" ] && [ "$LINUX_RESULT" = "success" ] && [ "$WEAR_RESULT" = "success" ]; then
             TITLE="Build successful"
             COLOR=3066993
           else
@@ -590,5 +601,5 @@ jobs:
           fi
           curl -sS -X POST "$DISCORD_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
-            -d "{\"embeds\":[{\"title\":\"$TITLE\",\"description\":\"**All Platforms Release** v$VERSION (android: $ANDROID_RESULT, ios: $IOS_RESULT, windows: $WINDOWS_RESULT, wear: $WEAR_RESULT)\\n[Build log]($RUN_URL)\",\"color\":$COLOR}]}" \
+            -d "{\"embeds\":[{\"title\":\"$TITLE\",\"description\":\"**All Platforms Release** v$VERSION (android: $ANDROID_RESULT, ios: $IOS_RESULT, windows: $WINDOWS_RESULT, linux: $LINUX_RESULT, wear: $WEAR_RESULT)\\n[Build log]($RUN_URL)\",\"color\":$COLOR}]}" \
             > /dev/null 2>&1 || true

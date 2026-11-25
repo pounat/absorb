@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Absorb
+Comment=Audiobookshelf client
+Exec=absorb
+Icon=com.barnabas.absorb
+Terminal=false
+Categories=AudioVideo;Audio;Player;

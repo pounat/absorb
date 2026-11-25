@@ -1,0 +1,65 @@
+id: com.barnabas.absorb
+runtime: org.gnome.Platform
+runtime-version: '50'
+sdk: org.gnome.Sdk
+command: absorb
+
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --socket=pulseaudio
+  - --device=dri
+  - --filesystem=xdg-download
+
+cleanup:
+  - /include
+  - /lib/pkgconfig
+  - '*.la'
+
+modules:
+  - name: libass
+    buildsystem: autotools
+    config-opts:
+      - --disable-static
+      - --disable-asm
+    sources:
+      - type: archive
+        url: https://github.com/libass/libass/releases/download/0.17.5/libass-0.17.5.tar.xz
+        sha256: 2dca25c0e0c837ddf00b52011b3f82cac1e4ddd3ad018227806b0c2288864acc
+
+  - name: libplacebo
+    buildsystem: meson
+    config-opts:
+      - -Dauto_features=disabled
+      - -Ddemos=false
+    sources:
+      - type: git
+        url: https://github.com/haasn/libplacebo.git
+        tag: v7.349.0
+        commit: 1fd3c7bde7b943fe8985c893310b5269a09b46c5
+
+  - name: mpv
+    buildsystem: meson
+    config-opts:
+      - -Dauto_features=disabled
+      - -Dcplayer=false
+      - -Dlibmpv=true
+      - -Dpulse=enabled
+    sources:
+      - type: git
+        url: https://github.com/mpv-player/mpv.git
+        tag: v0.41.0
+        commit: 41f6a645068483470267271e1d09966ca3b9f413
+
+  - name: absorb
+    buildsystem: simple
+    build-commands:
+      - mkdir -p /app/bin /app/opt /app/share
+      - cp -a opt/absorb /app/opt/
+      - cp -a usr/share/. /app/share/
+      - ln -s ../opt/absorb/absorb /app/bin/absorb
+    sources:
+      - type: dir
+        path: payload

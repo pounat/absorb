@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+native_arch=$(uname -m)
+case "$native_arch" in
+  x86_64) flutter_arch=x64; deb_arch=amd64 ;;
+  aarch64) flutter_arch=arm64; deb_arch=arm64 ;;
+  *) echo "Unsupported Linux architecture: $native_arch" >&2; exit 1 ;;
+esac
+
+version=$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | tr -d '\r')
+if [[ ! "$version" =~ ^([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+)$ ]]; then
+  echo "Expected a version such as 1.15.1+312 in pubspec.yaml" >&2
+  exit 1
+fi
+version_name=${BASH_REMATCH[1]}
+build_number=${BASH_REMATCH[2]}
+artifact_base="absorb-$version_name-$build_number"
+package_release="$build_number"
+if [[ "${1:-false}" == true ]]; then
+  artifact_base+="-pre"
+  package_release+="~pre"
+fi
+
+bundle="build/linux/$flutter_arch/release/bundle"
+if [[ ! -x "$bundle/absorb" || ! -f "$bundle/lib/libflutter_linux_gtk.so" || ! -d "$bundle/data/flutter_assets" ]]; then
+  echo "Run flutter build linux --release before packaging $flutter_arch" >&2
+  exit 1
+fi
+
+work=$(mktemp -d)
+trap 'rm -rf -- "$work"' EXIT
+payload="$work/payload"
+out="$PWD/build/linux-packages"
+mkdir -p "$payload/opt/absorb" "$payload/usr/bin" "$out"
+cp -a "$bundle/." "$payload/opt/absorb/"
+ln -s ../../opt/absorb/absorb "$payload/usr/bin/absorb"
+install -Dm644 linux/packaging/com.barnabas.absorb.desktop \
+  "$payload/usr/share/applications/com.barnabas.absorb.desktop"
+icon_dir="$payload/usr/share/icons/hicolor/512x512/apps"
+mkdir -p "$icon_dir"
+gdk-pixbuf-thumbnailer -s 512 assets/icon/app_icon.png "$icon_dir/com.barnabas.absorb.png"
+
+install -Dm644 LICENSE "$payload/usr/share/doc/absorb/copyright"
+installed_size=$(du -sk "$payload" | cut -f1)
+mkdir "$payload/DEBIAN"
+cat > "$payload/DEBIAN/control" <<EOF
+Package: absorb
+Version: $version_name-$package_release
+Architecture: $deb_arch
+Maintainer: Absorb contributors <nathan7418@gmail.com>
+Section: sound
+Priority: optional
+Depends: libc6 (>= 2.34), libstdc++6, libgtk-3-0t64 | libgtk-3-0, libwebkit2gtk-4.1-0, libmpv2 | libmpv1, xdg-utils
+Installed-Size: $installed_size
+Homepage: https://github.com/pounat/absorb
+Description: An Audiobookshelf client
+ Absorb connects to an Audiobookshelf server to browse and play audiobooks
+ and podcasts.
+EOF
+dpkg-deb --root-owner-group -Zxz --build "$payload" "$work/$artifact_base-$deb_arch.deb"
+
+mv "$payload/DEBIAN" "$work/control"
+rm "$payload/usr/share/doc/absorb/copyright"
+rmdir "$payload/usr/share/doc/absorb" "$payload/usr/share/doc"
+install -Dm644 LICENSE "$payload/usr/share/licenses/absorb/LICENSE"
+rpmbuild -bb --target "$native_arch" \
+  --define "_topdir $work/rpm" \
+  --define "package_payload $payload" \
+  --define "package_version $version_name" \
+  --define "package_release $package_release" \
+  linux/packaging/absorb.spec
+mv "$work/rpm/RPMS/$native_arch/absorb-$version_name-$package_release.$native_arch.rpm" \
+  "$work/$artifact_base-$native_arch.rpm"
+
+if [[ "${2:-}" == --flatpak ]]; then
+  app_id=com.barnabas.absorb
+  flathub_repo=https://dl.flathub.org/repo/flathub.flatpakrepo
+  cp "linux/packaging/$app_id.flatpak.yml" "$work/"
+  install -Dm644 "linux/packaging/$app_id.metainfo.xml" \
+    "$payload/usr/share/metainfo/$app_id.metainfo.xml"
+  flatpak remote-add --user --if-not-exists flathub "$flathub_repo"
+  flatpak-builder --user --install-deps-from=flathub --disable-rofiles-fuse \
+    --state-dir="$work/flatpak-state" --repo="$work/flatpak-repo" \
+    "$work/flatpak-build" "$work/$app_id.flatpak.yml"
+  flatpak_file="$artifact_base-$native_arch.flatpak"
+  flatpak build-bundle --arch="$native_arch" --runtime-repo="$flathub_repo" \
+    "$work/flatpak-repo" "$work/$flatpak_file" "$app_id"
+  mv "$work/$flatpak_file" "$out/"
+fi
+
+mv "$work/$artifact_base-$deb_arch.deb" "$work/$artifact_base-$native_arch.rpm" "$out/"

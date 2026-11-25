@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.barnabas.absorb</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>Absorb</name>
+  <summary>Audiobookshelf client</summary>
+  <developer id="com.barnabas">
+    <name>Absorb contributors</name>
+  </developer>
+  <description>
+    <p>Connect to your Audiobookshelf server to browse your library and listen to audiobooks and podcasts.</p>
+  </description>
+  <launchable type="desktop-id">com.barnabas.absorb.desktop</launchable>
+  <url type="homepage">https://github.com/pounat/absorb</url>
+  <url type="bugtracker">https://github.com/pounat/absorb/issues</url>
+  <content_rating type="oars-1.1"/>
+</component>

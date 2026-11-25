@@ -90,6 +90,18 @@ TestFlight is the iOS alpha track, matching GitHub pre-releases. Builds are more
 
 Alpha `.ipa` files are included in GitHub pre-releases alongside the Android APK. If you know how to sideload IPAs (via AltStore, Sideloadly, etc.), you can grab the latest alpha build from the [releases page](../../releases). For most users, TestFlight is easier - automatic updates and no sideloading setup.
 
+### Linux
+
+Download a package from the [releases page](../../releases) for your distribution and CPU.
+
+| Distribution | Intel / AMD 64-bit | ARM 64-bit |
+| --- | --- | --- |
+| Ubuntu / Debian | `amd64.deb` | `arm64.deb` |
+| Fedora 43+ | `x86_64.rpm` | `aarch64.rpm` |
+| Flatpak | `x86_64.flatpak` | `aarch64.flatpak` |
+
+Install the downloaded file with `sudo apt install ./absorb-*.deb`, `sudo dnf install ./absorb-*.rpm`, or `flatpak install --user ./absorb-*.flatpak`. Open Absorb from the application menu, or run `absorb` for DEB and RPM installations and `flatpak run com.barnabas.absorb` for Flatpak.
+
 ## Android Auto
 
 Absorb supports Android Auto for browsing and listening from your car. If you are using the github version, you'll need to enable unknown sources in Android Auto:

@@ -10,6 +10,7 @@ import '../services/ebook_cache.dart';
 import '../services/image_epub.dart';
 import '../services/narration_service.dart';
 import '../services/server_backend.dart';
+import '../utils/app_platform.dart';
 import 'comic_reader_view.dart';
 import 'ebook_reader_view.dart';
 import 'pdf_reader_view.dart';
@@ -28,10 +29,15 @@ String ebookExt(Map<String, dynamic>? ebookFile) {
 bool canReadEbook(Map<String, dynamic>? ebookFile) {
   if (ebookFile == null) return false;
   final ext = ebookExt(ebookFile);
+  if (_requiresUnsupportedWebView(ext)) return false;
   // BookOrbit unpacks CBR and CB7 on the server and sends the pages.
   if (comicEbookFormats.contains(ext) && ServerBackend.active.isBookOrbit) return true;
   return readableEbookFormats.contains(ext);
 }
+
+// The embedded reader's WebView plugin has no Linux implementation.
+bool _requiresUnsupportedWebView(String ext) =>
+    AppPlatform.isLinux && (ext == 'epub' || foliateEbookFormats.contains(ext));
 
 /// Opens a book's ebook at a highlight. A downloaded ebook opens from the
 /// reader cache, so this works offline. [title] is looked up when not given.
@@ -93,7 +99,11 @@ Future<void> openEbookReader(
 }) async {
   final ext = ebookExt(ebookFile);
   final Widget viewer;
-  if (ext == 'epub') {
+  if (_requiresUnsupportedWebView(ext)) {
+    showOverlayToast(context, AppLocalizations.of(context)!.readerFormatUnsupported,
+        icon: Icons.menu_book_outlined);
+    return;
+  } else if (ext == 'epub') {
     viewer = _EpubGate(
       itemId: itemId,
       title: title,

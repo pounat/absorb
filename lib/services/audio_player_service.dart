@@ -3079,15 +3079,15 @@ class AudioPlayerService extends ChangeNotifier {
     try {
       final fwdSkip = await PlayerSettings.getForwardSkip();
       final backSkip = await PlayerSettings.getBackSkip();
-      // Windows has no audio_service or just_audio implementation: without
-      // this AudioService.init threw, no player existed, and play spun
+      // Windows and Linux have no audio_service or just_audio implementation:
+      // without this AudioService.init threw, no player existed, and play spun
       // forever. media_kit plays the audio; the handler runs standalone.
-      if (AppPlatform.isWindows) {
+      if (AppPlatform.isWindows || AppPlatform.isLinux) {
         // With pitch control on, speed runs through mpv's old scaletempo
         // filter, which sounds robotic above 1x. Off, mpv picks scaletempo2.
         // The pitch slider is Android-only, so nothing is lost.
         JustAudioMediaKit.pitch = false;
-        JustAudioMediaKit.ensureInitialized(windows: true, linux: false);
+        JustAudioMediaKit.ensureInitialized();
         _handler = AudioPlayerHandler();
       } else {
         _handler = await AudioService.init<AudioPlayerHandler>(
