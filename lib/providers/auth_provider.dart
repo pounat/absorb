@@ -567,34 +567,62 @@ class AuthProvider extends ChangeNotifier {
   /// If the server is unreachable, still restore credentials so offline mode works.
   Future<void> tryRestoreSession() async {
     if (AppPlatform.isWeb) {
+      final gen = ++_accountGen;
       _isLoading = true;
       final prefs = await SharedPreferences.getInstance();
+      if (gen != _accountGen) return;
       _serverUrl = prefs.getString('server_url');
       _backend = ServerBackend.loadActive(prefs);
+      _username = prefs.getString('username');
       final label = prefs.getString('token') ?? '';
       _customHeaders = {};
       _useLocalServer = false;
       _localServerEnabled = false;
+      _startOnAbsorbingAfterAccountChange = false;
       _accessToken = null;
       _refreshToken = null;
+      _userJson = null;
+      _userId = null;
+      _errorMessage = null;
       try {
+        // Only the explicit selected authority may restore. Never probe others.
         if (_serverUrl == null || !BrowserAdapter.isSessionLabel(label)) return;
         final api = ApiService.forSession(backend: _backend, baseUrl: _serverUrl!, token: label);
-        final me = await api.getMe();
-        if (me != null) {
-          final tokens = AuthTokens.fromResponse({'user': me}, browser: true);
-          _accessToken = label;
-          _refreshToken = tokens.refreshToken;
-          _isLegacyToken = false;
-          _userJson = me;
-          _username = me['username'] as String?;
-          _userId = me['id'] as String?;
+        for (var attempt = 0; attempt < 2; attempt++) {
+          if (gen != _accountGen) return;
+          try {
+            final identity = await api.browserSessionIdentity();
+            if (gen != _accountGen) return;
+            if (identity.status == 401 || identity.status == 403) {
+              _errorMessage = 'Session expired. Sign in again.';
+              return;
+            }
+            final me = identity.user;
+            if (me != null) {
+              if (_username != null && _username != me['username']) {
+                _errorMessage = 'Session changed. Sign in again.';
+                return;
+              }
+              _accessToken = label;
+              _refreshToken = label;
+              _isLegacyToken = false;
+              _userJson = me;
+              _username = me['username'] as String;
+              _userId = me['id'] as String;
+              _serverReachable = true;
+              return;
+            }
+          } catch (_) {
+            if (gen != _accountGen) return;
+          }
+          if (attempt == 0) await Future<void>.delayed(const Duration(milliseconds: 500));
         }
-      } catch (_) {
-        _errorMessage = 'Session unavailable. Sign in again.';
+        _errorMessage = 'Session temporarily unavailable. Try again.';
       } finally {
-        _isLoading = false;
-        notifyListeners();
+        if (gen == _accountGen) {
+          _isLoading = false;
+          notifyListeners();
+        }
       }
       return;
     }
@@ -1698,6 +1726,13 @@ class AuthProvider extends ChangeNotifier {
     if (!AppPlatform.lacksPhonePlugins) {
       await HomeWidgetService().clearStats();
       HomeWidgetService().refreshStats(force: true);
+    }
+
+    if (AppPlatform.isWeb) {
+      await SessionCache.clearAll();
+      if (gen != _accountGen) return false;
+      await tryRestoreSession();
+      return isAuthenticated;
     }
 
     // Ping first, the way a launch does. Without it a server this phone

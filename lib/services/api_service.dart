@@ -1537,6 +1537,23 @@ class ApiService {
   }
 
   /// Get current user info including all mediaProgress.
+  /// Cookie authority comes from a successful protected identity request, not
+  /// the login-only credential markers (the BookOrbit mapper omits those).
+  /// Preserve status here so restoration never treats a network failure as
+  /// confirmed expiry. Native getMe/offline behavior remains unchanged.
+  Future<({Map<String, dynamic>? user, int status})> browserSessionIdentity() async {
+    final response = await _authGet(
+      Uri.parse('$_cleanBaseUrl/api/me'),
+      timeout: const Duration(seconds: 10),
+    );
+    if (response.statusCode != 200) return (user: null, status: response.statusCode);
+    final user = jsonDecode(response.body) as Map<String, dynamic>;
+    if (user['id'] is! String || (user['id'] as String).isEmpty ||
+        user['username'] is! String || (user['username'] as String).isEmpty) {
+      throw const FormatException('Invalid browser identity');
+    }
+    return (user: user, status: 200);  }
+
   Future<Map<String, dynamic>?> getMe() async {
     try {
       final response = await _authGet(

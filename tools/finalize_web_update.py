@@ -23,12 +23,17 @@ def finalize(root):
     bootstrap_hash = hashlib.sha256(bootstrap_path.read_bytes()).hexdigest()
     index_path = root / 'index.html'
     index = index_path.read_text()
+    helper_hash = hashlib.sha256((root / 'readalong.js').read_bytes()).hexdigest()
+    index, helper_count = re.subn(r'src="readalong\.js(?:\?v=[0-9a-f]{64})?"',
+                                 f'src="readalong.js?v={helper_hash}"', index)
+    if helper_count != 1:
+        raise ValueError('Expected exactly one Read Along helper script')
     index, count = re.subn(r'src="flutter_bootstrap\.js(?:\?v=[0-9a-f]{64})?"',
                           f'src="flutter_bootstrap.js?v={bootstrap_hash}"', index)
     if count != 1:
         raise ValueError('Expected exactly one bootstrap script')
     index_path.write_text(index)
-    return {'main': main_hash, 'bootstrap': bootstrap_hash}
+    return {'main': main_hash, 'bootstrap': bootstrap_hash, 'readalong': helper_hash}
 
 
 if __name__ == '__main__':
