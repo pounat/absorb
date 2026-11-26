@@ -9,6 +9,7 @@ import '../services/api_service.dart';
 import '../services/audio_player_service.dart';
 import '../services/media_overlay.dart';
 import '../services/readalong_appearance.dart';
+import 'card_buttons.dart' show CardSpeedSheet;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class BookOrbitReadAlongView extends StatefulWidget {
@@ -33,10 +34,10 @@ class _BookOrbitReadAlongViewState extends State<BookOrbitReadAlongView> {
   late final Future<void> preferencesReady;
   SharedPreferences? preferences;
   bool saveFailed = false;
-  bool appearanceModalOpen = false;
+  bool readerModalOpen = false;
   String? savedFramePointerEvents;
-  void _setAppearanceModalOpen(bool open) {
-    appearanceModalOpen = open;
+  void _setReaderModalOpen(bool open) {
+    readerModalOpen = open;
     final element = frame;
     if (element == null) return;
     if (open) {
@@ -75,8 +76,8 @@ class _BookOrbitReadAlongViewState extends State<BookOrbitReadAlongView> {
   }
   Future<void> _appearanceMenu() async {
     await preferencesReady;
-    if (!mounted || retired || appearanceModalOpen) return;
-    _setAppearanceModalOpen(true);
+    if (!mounted || retired || readerModalOpen) return;
+    _setReaderModalOpen(true);
     try {
       await showModalBottomSheet<void>(context: context, isScrollControlled: true, useSafeArea: true,
       builder: (sheetContext) => StatefulBuilder(builder: (context, refresh) {
@@ -112,7 +113,34 @@ class _BookOrbitReadAlongViewState extends State<BookOrbitReadAlongView> {
           ]));
       }));
     } finally {
-      _setAppearanceModalOpen(false);
+      _setReaderModalOpen(false);
+    }
+  }
+  Future<void> _speedMenu() async {
+    if (!mounted || !playingThisBook || readerModalOpen) return;
+    final auth = context.read<AuthProvider>();
+    final speedOwner = owner;
+    final speedItemId = widget.itemId;
+    bool canChangeSpeed() => mounted && player.hasBook && owner == speedOwner && widget.itemId == speedItemId && playingThisBook;
+    _setReaderModalOpen(true);
+    try {
+      await showModalBottomSheet<void>(context: context, isScrollControlled: true, useSafeArea: true,
+        builder: (sheetContext) => ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(sheetContext).height * .85),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Align(alignment: Alignment.centerRight, child: IconButton(
+              tooltip: 'Close playback speed', onPressed: () => Navigator.pop(sheetContext), icon: const Icon(Icons.close))),
+            Flexible(child: SingleChildScrollView(child: AnimatedBuilder(
+              animation: Listenable.merge([player, auth]),
+              builder: (context, _) => canChangeSpeed()
+                ? CardSpeedSheet(player: player, accent: Theme.of(context).colorScheme.primary,
+                    itemId: widget.itemId, libraryId: item?['libraryId'] as String?, canChangeSpeed: canChangeSpeed)
+                : const Padding(padding: EdgeInsets.all(24), child: Text('Start this book to change its speed.')),
+            ))),
+          ])),
+      );
+    } finally {
+      _setReaderModalOpen(false);
     }
   }
   bool get active {
@@ -130,7 +158,7 @@ class _BookOrbitReadAlongViewState extends State<BookOrbitReadAlongView> {
     element.setAttribute('sandbox', 'allow-same-origin');
     element.setAttribute('title', 'Book text — Read Along');
     element.style.cssText = 'width:100%;height:100%;border:0;background:#101114';
-    if (appearanceModalOpen) _setAppearanceModalOpen(true);
+    if (readerModalOpen) _setReaderModalOpen(true);
     final selected = context.read<AuthProvider>().apiService;
     if (selected is! BookOrbitApiService) return;
     api = selected;owner = selected.readAlongOwnerKey;
@@ -192,11 +220,14 @@ class _BookOrbitReadAlongViewState extends State<BookOrbitReadAlongView> {
     } finally {if (mounted) setState(() => busy = false);}
   }
   @override
-  void dispose() {_setAppearanceModalOpen(false);generation++;timer?.cancel();final h = host;if (h != null) js.callMethod(h, 'dispose', []);host = null;super.dispose();}
+  void dispose() {_setReaderModalOpen(false);generation++;timer?.cancel();final h = host;if (h != null) js.callMethod(h, 'dispose', []);host = null;super.dispose();}
   @override
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: const Color(0xff101114),
     appBar: AppBar(title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis), actions: [
+      Tooltip(message: playingThisBook ? 'Playback speed' : 'Start this book to change its speed',
+        child: TextButton(onPressed: playingThisBook && !busy ? _speedMenu : null,
+          child: Text(playingThisBook ? '${player.speed.toStringAsFixed(2)}×' : 'Speed'))),
       IconButton(tooltip:'Text appearance',onPressed:retired ? null : _appearanceMenu,icon:const Text('Aa',style:TextStyle(fontSize:22))),
     ]),
     body: Column(children: [

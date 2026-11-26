@@ -832,7 +832,8 @@ class _CardSpeedButtonInlineState extends State<CardSpeedButtonInline> {
 
 class CardSpeedSheet extends StatefulWidget {
   final AudioPlayerService player; final Color accent; final String? itemId; final String? libraryId;
-  const CardSpeedSheet({super.key, required this.player, required this.accent, this.itemId, this.libraryId});
+  final bool Function()? canChangeSpeed;
+  const CardSpeedSheet({super.key, required this.player, required this.accent, this.itemId, this.libraryId, this.canChangeSpeed});
   @override State<CardSpeedSheet> createState() => _CardSpeedSheetState();
 }
 
@@ -865,12 +866,14 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
   }
 
   Future<void> _addCurrentAsPreset() async {
+    if (widget.canChangeSpeed?.call() == false) return;
     if (_presets.any((p) => (p - _speed).abs() < 0.01)) return;
     final next = [..._presets, _speed];
     await PlayerSettings.setSpeedPresets(next);
   }
 
   Future<void> _removePreset(double value) async {
+    if (widget.canChangeSpeed?.call() == false) return;
     if (_presets.length <= 1) return;
     final next = _presets.where((p) => (p - value).abs() >= 0.01).toList();
     await PlayerSettings.setSpeedPresets(next);
@@ -883,6 +886,7 @@ class _CardSpeedSheetState extends State<CardSpeedSheet> {
     if (mounted) setState(() => _speed = (speed * 20).round() / 20.0);
   }
   void _setSpeed(double v) {
+    if (widget.canChangeSpeed?.call() == false) return;
     final s = (v * 20).round() / 20.0;
     setState(() => _speed = s.clamp(0.5, 5.0));
     if (_isCasting) {
