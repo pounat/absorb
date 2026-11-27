@@ -147,6 +147,18 @@ bool Win32Window::Create(const std::wstring& title,
 
   UpdateTheme(window);
 
+  // Back where it was last time: the same size on the same monitor,
+  // maximized again if it was. It still appears with the first frame.
+  // This has to happen before OnCreate starts Flutter: moving the hidden
+  // window to a monitor with a different scale after that leaves Flutter
+  // without a first frame, so the window never appears.
+  WINDOWPLACEMENT placement;
+  if (LoadWindowPlacement(&placement)) {
+    SetShowMaximized(placement.showCmd == SW_SHOWMAXIMIZED);
+    placement.showCmd = SW_HIDE;
+    SetWindowPlacement(window, &placement);
+  }
+
   return OnCreate();
 }
 
