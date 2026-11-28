@@ -2090,15 +2090,18 @@ class SettingsScreenState extends State<SettingsScreen> {
                   child: GestureDetector(
                     onTap: () => showTipsSheet(context),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      padding: const EdgeInsets.fromLTRB(12, 14, 16, 14),
                       decoration: BoxDecoration(
                         color: cs.surfaceContainerHigh,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.auto_awesome_rounded, color: cs.onPrimaryContainer, size: 22),
-                          const SizedBox(width: 12),
+                          SizedBox(
+                            width: 40,
+                            child: Icon(Icons.auto_awesome_rounded, color: cs.onPrimaryContainer, size: 22),
+                          ),
+                          const SizedBox(width: 14),
                           Expanded(child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -2124,7 +2127,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                   child: GestureDetector(
                     onTap: () => auth.isSignedOut ? openSignInAgain(context) : _showAccountSheet(context),
                     child: Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.fromLTRB(12, 16, 16, 16),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(18),
                         color: cs.surfaceContainerHigh,
@@ -2234,10 +2237,13 @@ class SettingsScreenState extends State<SettingsScreen> {
                           _loadAdminIssueCount();
                         },
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          padding: const EdgeInsets.fromLTRB(12, 14, 16, 14),
                           child: Row(
                             children: [
-                              Icon(Icons.admin_panel_settings_rounded, color: cs.onSurfaceVariant, size: 22),
+                              SizedBox(
+                                width: 40,
+                                child: Icon(Icons.admin_panel_settings_rounded, color: cs.onSurfaceVariant, size: 22),
+                              ),
                               const SizedBox(width: 14),
                               Expanded(child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2278,10 +2284,13 @@ class SettingsScreenState extends State<SettingsScreen> {
                           builder: (_) => const BookOrbitAdminScreen(),
                         )),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                          padding: const EdgeInsets.fromLTRB(12, 14, 16, 14),
                           child: Row(
                             children: [
-                              Icon(Icons.admin_panel_settings_rounded, color: cs.onSurfaceVariant, size: 22),
+                              SizedBox(
+                                width: 40,
+                                child: Icon(Icons.admin_panel_settings_rounded, color: cs.onSurfaceVariant, size: 22),
+                              ),
                               const SizedBox(width: 14),
                               Expanded(child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
