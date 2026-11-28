@@ -105,7 +105,27 @@ class _TvKeyboardState extends State<_TvKeyboard> {
   @override
   void dispose() {
     widget.controller.removeListener(_redraw);
+    for (final node in _nodes.values) {
+      node.dispose();
+    }
     super.dispose();
+  }
+
+  // One per key, so the ends of a row can hand the remote to each other.
+  final Map<String, FocusNode> _nodes = {};
+  FocusNode _node(String id) => _nodes.putIfAbsent(id, FocusNode.new);
+
+  /// Lays [keys] out as a row where Left on the first key lands on the last
+  /// and Right on the last lands on the first.
+  Widget _row(String id, List<_Key Function(FocusNode node, FocusNode? left, FocusNode? right)> keys) {
+    final nodes = [for (var i = 0; i < keys.length; i++) _node('$id-$i')];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(children: [
+        for (var i = 0; i < keys.length; i++)
+          keys[i](nodes[i], i == 0 ? nodes.last : null, i == keys.length - 1 ? nodes.first : null),
+      ]),
+    );
   }
 
   void _redraw() {
@@ -159,11 +179,6 @@ class _TvKeyboardState extends State<_TvKeyboard> {
     final rows = _symbols ? _marks : _letters;
     final upper = _shift != _Shift.off && !_symbols;
 
-    Widget row(List<Widget> keys) => Padding(
-          padding: const EdgeInsets.only(bottom: 6),
-          child: Row(children: keys),
-        );
-
     return TvDrawsOwnFocus(
       child: Align(
         alignment: Alignment.bottomCenter,
@@ -202,46 +217,71 @@ class _TvKeyboardState extends State<_TvKeyboard> {
                           ),
                         ),
                         for (var r = 0; r < rows.length; r++)
-                          row([
+                          // Each layer's keys are their own, so a key keeps
+                          // the remote when the layer changes.
+                          _row('${_symbols ? 's' : 'l'}$r', [
                             for (var c = 0; c < rows[r].length; c++)
-                              _Key(
-                                // Each layer's keys are their own, so a key
-                                // keeps the remote when the layer changes.
-                                key: ValueKey('${_symbols ? 's' : 'l'}$r-$c'),
-                                autofocus: r == 1 && c == 0,
-                                label: upper ? rows[r][c].toUpperCase() : rows[r][c],
-                                onTap: () => _type(rows[r][c]),
-                              ),
+                              (node, left, right) => _Key(
+                                    key: ValueKey('${_symbols ? 's' : 'l'}$r-$c'),
+                                    focusNode: node,
+                                    wrapLeft: left,
+                                    wrapRight: right,
+                                    autofocus: r == 1 && c == 0,
+                                    label: upper ? rows[r][c].toUpperCase() : rows[r][c],
+                                    onTap: () => _type(rows[r][c]),
+                                  ),
                           ]),
-                        row([
-                          _Key(
-                            flex: 3,
-                            icon: _shift == _Shift.locked ? Icons.keyboard_capslock_rounded : Icons.arrow_upward_rounded,
-                            lit: _shift != _Shift.off,
-                            onTap: () => setState(() {
-                              _shift = _Shift.values[(_shift.index + 1) % _Shift.values.length];
-                            }),
-                          ),
-                          _Key(
-                            flex: 3,
-                            label: _symbols ? 'abc' : '!#1',
-                            onTap: () => setState(() => _symbols = !_symbols),
-                          ),
-                          _Key(
-                            flex: 2,
-                            icon: Icons.language_rounded,
-                            onTap: () => _leave(TvKeyboardResult.system),
-                          ),
-                          _Key(flex: 8, icon: Icons.space_bar_rounded, onTap: () => _type(' ')),
+                        _row(widget.multiline ? 'bm' : 'b', [
+                          (node, left, right) => _Key(
+                                focusNode: node,
+                                wrapLeft: left,
+                                wrapRight: right,
+                                flex: 3,
+                                icon: _shift == _Shift.locked
+                                    ? Icons.keyboard_capslock_rounded
+                                    : Icons.arrow_upward_rounded,
+                                lit: _shift != _Shift.off,
+                                onTap: () => setState(() {
+                                  _shift = _Shift.values[(_shift.index + 1) % _Shift.values.length];
+                                }),
+                              ),
+                          (node, left, right) => _Key(
+                                focusNode: node,
+                                flex: 3,
+                                label: _symbols ? 'abc' : '!#1',
+                                onTap: () => setState(() => _symbols = !_symbols),
+                              ),
+                          (node, left, right) => _Key(
+                                focusNode: node,
+                                flex: 2,
+                                icon: Icons.language_rounded,
+                                onTap: () => _leave(TvKeyboardResult.system),
+                              ),
+                          (node, left, right) =>
+                              _Key(focusNode: node, flex: 8, icon: Icons.space_bar_rounded, onTap: () => _type(' ')),
                           if (widget.multiline)
-                            _Key(flex: 2, icon: Icons.keyboard_return_rounded, onTap: () => _type('\n')),
-                          _Key(flex: 3, icon: Icons.backspace_outlined, repeats: true, onTap: _erase),
-                          _Key(
-                            flex: 4,
-                            icon: widget.search ? Icons.search_rounded : Icons.check_rounded,
-                            strong: true,
-                            onTap: () => _leave(TvKeyboardResult.done),
-                          ),
+                            (node, left, right) => _Key(
+                                  focusNode: node,
+                                  flex: 2,
+                                  icon: Icons.keyboard_return_rounded,
+                                  onTap: () => _type('\n'),
+                                ),
+                          (node, left, right) => _Key(
+                                focusNode: node,
+                                flex: 3,
+                                icon: Icons.backspace_outlined,
+                                repeats: true,
+                                onTap: _erase,
+                              ),
+                          (node, left, right) => _Key(
+                                focusNode: node,
+                                wrapLeft: left,
+                                wrapRight: right,
+                                flex: 4,
+                                icon: widget.search ? Icons.search_rounded : Icons.check_rounded,
+                                strong: true,
+                                onTap: () => _leave(TvKeyboardResult.done),
+                              ),
                         ]),
                       ],
                     ),
@@ -271,6 +311,11 @@ class _Key extends StatefulWidget {
   /// Holding OK keeps going (backspace).
   final bool repeats;
   final VoidCallback onTap;
+  final FocusNode? focusNode;
+
+  /// Where Left goes from the first key of a row, and Right from the last.
+  final FocusNode? wrapLeft;
+  final FocusNode? wrapRight;
 
   const _Key({
     super.key,
@@ -282,6 +327,9 @@ class _Key extends StatefulWidget {
     this.strong = false,
     this.repeats = false,
     required this.onTap,
+    this.focusNode,
+    this.wrapLeft,
+    this.wrapRight,
   });
 
   @override
@@ -293,6 +341,15 @@ class _KeyState extends State<_Key> {
 
   KeyEventResult _onKey(FocusNode _, KeyEvent event) {
     final k = event.logicalKey;
+    final wrap = k == LogicalKeyboardKey.arrowLeft
+        ? widget.wrapLeft
+        : k == LogicalKeyboardKey.arrowRight
+            ? widget.wrapRight
+            : null;
+    if (wrap != null) {
+      if (event is! KeyUpEvent) wrap.requestFocus();
+      return KeyEventResult.handled;
+    }
     final ok = k == LogicalKeyboardKey.select ||
         k == LogicalKeyboardKey.enter ||
         k == LogicalKeyboardKey.numpadEnter ||
@@ -322,6 +379,7 @@ class _KeyState extends State<_Key> {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 3),
         child: Focus(
+          focusNode: widget.focusNode,
           autofocus: widget.autofocus,
           onFocusChange: (v) => setState(() => _focused = v),
           onKeyEvent: _onKey,
