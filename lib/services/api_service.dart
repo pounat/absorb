@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'achievements.dart';
 import 'auth_tokens.dart';
+import 'browser_adapter.dart';
+import 'browser_mime_stub.dart' if (dart.library.html) 'browser_mime_web.dart';
 import 'book_dock.dart';
 import 'book_requests.dart';
 import 'bookorbit_admin.dart';
@@ -160,6 +162,14 @@ class PasswordChangeResult {
   const PasswordChangeResult(this.status, {this.message});
 }
 
+/// Static, capability-free error: never expose a URL, token or response body.
+class WebProgressReadException implements Exception {
+  const WebProgressReadException();
+
+  @override
+  String toString() => 'Could not read authoritative playback progress';
+}
+
 class ApiService {
   /// Remove sidecar metadata files from every item in a library (admin only).
   /// [extension] is the server-supported sidecar type: `json` or `abs`.
@@ -266,6 +276,7 @@ class ApiService {
   }
 
   final String baseUrl;
+  final BrowserSessionWrites _webSessions = BrowserSessionWrites();
   String _accessToken;
   String? _refreshToken;
   final bool _isLegacyToken;
@@ -319,7 +330,7 @@ class ApiService {
   }
 
   ApiService({
-    required this.baseUrl,
+    required String baseUrl,
     required String token,
     String? refreshToken,
     bool isLegacyToken = false,
@@ -329,9 +340,10 @@ class ApiService {
     this.onAuthExpired,
     Duration refreshRetryDelay = const Duration(milliseconds: 250),
     http.Client? httpClient,
-  })  : _accessToken = token,
-        _refreshToken = refreshToken,
-        _isLegacyToken = isLegacyToken,
+  })  : baseUrl = kIsWeb ? BrowserAdapter.sessionBase(Uri.base, token) : baseUrl,
+        _accessToken = kIsWeb ? BrowserAdapter.cookieSentinel : token,
+        _refreshToken = kIsWeb ? BrowserAdapter.cookieSentinel : refreshToken,
+        _isLegacyToken = kIsWeb ? false : isLegacyToken,
         _refreshRetryDelay = refreshRetryDelay,
         _httpClient = httpClient {
     _loadCachedServerVersion(baseUrl);
@@ -390,7 +402,7 @@ class ApiService {
 
   /// URL for downloading an ebook file for the reader.
   String buildEbookUrl(String itemId, String ino) =>
-      '$_cleanBaseUrl/api/items/$itemId/file/$ino?token=$token';
+      '$_cleanBaseUrl/api/items/$itemId/file/$ino${kIsWeb ? '' : '?token=$token'}';
 
   /// The ebook the reader caches, which may leave out what reading doesn't
   /// need (BookOrbit's narrated EPUBs come without their audio).
@@ -650,14 +662,14 @@ class ApiService {
 
   static String get userAgent => 'Absorb/$appVersionFull';
 
-  Map<String, String> get _headers => {
+  Map<String, String> get _headers => kIsWeb ? BrowserAdapter.requestHeaders(null) : {
         ...customHeaders,
         'Authorization': 'Bearer $_accessToken',
         'Content-Type': 'application/json',
       };
 
   /// Public headers for image/audio requests (no Content-Type needed).
-  Map<String, String> get mediaHeaders => {
+  Map<String, String> get mediaHeaders => kIsWeb ? const {} : {
         ...customHeaders,
         'Authorization': 'Bearer $_accessToken',
       };
@@ -666,25 +678,41 @@ class ApiService {
   /// only reverse-proxy headers belong on the media request. Keeping the
   /// account token off the AVPlayer/ExoPlayer source prevents token rotation
   /// from invalidating a stream that is already playing.
-  Map<String, String> get playbackSessionHeaders => {...customHeaders};
+  Map<String, String> get playbackSessionHeaders => kIsWeb ? const {} : {...customHeaders};
 
   String get _cleanBaseUrl => normalizeServerUrl(baseUrl);
 
   Future<http.Response> _get(Uri url, {Map<String, String>? headers}) {
+    if (kIsWeb) {
+      url = BrowserAdapter.requestUri(Uri.base, url);
+      headers = BrowserAdapter.requestHeaders(headers);
+    }
     return _httpClient?.get(url, headers: headers) ?? http.get(url, headers: headers);
   }
 
   Future<http.Response> _post(Uri url, {Map<String, String>? headers, Object? body}) {
+    if (kIsWeb) {
+      return BrowserAdapter.post(Uri.base, url,
+          client: _httpClient, headers: headers, body: body);
+    }
     return _httpClient?.post(url, headers: headers, body: body) ??
         http.post(url, headers: headers, body: body);
   }
 
   Future<http.Response> _patch(Uri url, {Map<String, String>? headers, Object? body}) {
+    if (kIsWeb) {
+      url = BrowserAdapter.requestUri(Uri.base, url);
+      headers = BrowserAdapter.requestHeaders(headers);
+    }
     return _httpClient?.patch(url, headers: headers, body: body) ??
         http.patch(url, headers: headers, body: body);
   }
 
   Future<http.Response> _delete(Uri url, {Map<String, String>? headers}) {
+    if (kIsWeb) {
+      url = BrowserAdapter.requestUri(Uri.base, url);
+      headers = BrowserAdapter.requestHeaders(headers);
+    }
     return _httpClient?.delete(url, headers: headers) ?? http.delete(url, headers: headers);
   }
 
@@ -697,6 +725,7 @@ class ApiService {
   }
 
   Future<bool> _adoptPersistedTokens() async {
+    if (kIsWeb) return false;
     final loader = loadPersistedTokens;
     if (loader == null) return false;
 
@@ -725,6 +754,7 @@ class ApiService {
   }
 
   Future<void> _notifyTokensRefreshed() async {
+    if (kIsWeb) return; // Cookie rotation must not replace the saved public route label.
     try {
       final persisted = await onTokensRefreshed?.call(_accessToken, _refreshToken);
       debugPrint(
@@ -760,7 +790,7 @@ class ApiService {
         Uri.parse('$_cleanBaseUrl/auth/refresh'),
         headers: {
           ...customHeaders,
-          'x-refresh-token': refreshToken,
+          if (!kIsWeb) 'x-refresh-token': refreshToken,
           if (!kIsWeb) 'User-Agent': userAgent,
         },
       );
@@ -779,7 +809,7 @@ class ApiService {
         return false;
       }
       final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final tokens = AuthTokens.fromResponse(data);
+      final tokens = AuthTokens.fromResponse(data, browser: kIsWeb);
       if (tokens.accessToken == null || tokens.refreshToken == null) return false;
       _accessToken = tokens.accessToken!;
       _refreshToken = tokens.refreshToken!;
@@ -884,7 +914,7 @@ class ApiService {
 
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body) as Map<String, dynamic>;
-            final tokens = AuthTokens.fromResponse(data);
+            final tokens = AuthTokens.fromResponse(data, browser: kIsWeb);
             final newAccess = tokens.accessToken;
             final newRefresh = tokens.refreshToken;
             if (newAccess != null) {
@@ -1117,14 +1147,20 @@ class ApiService {
     Map<String, String> customHeaders = const {},
     ServerBackend backend = ServerBackend.audiobookshelf,
   }) async {
+    final selectedServerUrl = serverUrl;
+    if (kIsWeb) {
+      serverUrl = BrowserAdapter.currentOrigin(Uri.base);
+      customHeaders = const {};
+    }
     if (backend.isBookOrbit) {
       return BookOrbitApiService.signIn(
-        serverUrl: serverUrl,
+        serverUrl: kIsWeb ? selectedServerUrl : serverUrl,
         username: username,
         password: password,
         customHeaders: customHeaders,
       );
     }
+    if (kIsWeb) { serverUrl = BrowserAdapter.currentOrigin(Uri.base); customHeaders = const {}; }
     final url = serverUrl.endsWith('/')
         ? '${serverUrl}login'
         : '$serverUrl/login';
@@ -1135,10 +1171,12 @@ class ApiService {
         headers: {
           ...customHeaders,
           'Content-Type': 'application/json',
-          'x-return-tokens': 'true',
+          if (!kIsWeb) 'x-return-tokens': 'true',
           if (!kIsWeb) 'User-Agent': userAgent,
         },
-        body: jsonEncode({'username': username, 'password': password}),
+        body: kIsWeb
+            ? BrowserAdapter.loginBody(selectedServerUrl, username, password)
+            : jsonEncode({'username': username, 'password': password}),
       // A server that takes the connection and then never answers (a proxy
       // up with the server behind it down) left the sign-in spinning forever.
       ).timeout(const Duration(seconds: 20));
@@ -1165,6 +1203,7 @@ class ApiService {
     Map<String, String> customHeaders = const {},
     ServerBackend backend = ServerBackend.audiobookshelf,
   }) async {
+    if (kIsWeb) return (null, 403);
     final base = serverUrl.endsWith('/') ? serverUrl : '$serverUrl/';
     final url = backend.isBookOrbit ? '${base}api/v1/auth/me' : '${base}api/me';
 
@@ -1189,6 +1228,7 @@ class ApiService {
     if ((backend ?? ServerBackend.active).isBookOrbit) {
       return (await BookOrbitApiService.probe(serverUrl, customHeaders: customHeaders)).ok;
     }
+    if (kIsWeb) { serverUrl = BrowserAdapter.currentOrigin(Uri.base); customHeaders = const {}; }
     final url = serverUrl.endsWith('/')
         ? '${serverUrl}ping'
         : '$serverUrl/ping';
@@ -1219,6 +1259,7 @@ class ApiService {
         timeout: const Duration(seconds: 15),
       );
     }
+    if (kIsWeb) { serverUrl = BrowserAdapter.currentOrigin(Uri.base); customHeaders = const {}; }
     final url = serverUrl.endsWith('/') ? '${serverUrl}ping' : '$serverUrl/ping';
     try {
       final response = await http
@@ -1264,6 +1305,7 @@ class ApiService {
   static Future<String?> getServerVersion(String serverUrl, {Map<String, String> customHeaders = const {}, ServerBackend? backend}) async {
     // BookOrbit only tells a signed-in client its version.
     if ((backend ?? ServerBackend.active).isBookOrbit) return null;
+    if (kIsWeb) { serverUrl = BrowserAdapter.currentOrigin(Uri.base); customHeaders = const {}; }
     final url = serverUrl.endsWith('/')
         ? '${serverUrl}status'
         : '$serverUrl/status';
@@ -1479,7 +1521,7 @@ class ApiService {
   /// [coverSlot] picks BookOrbit's 'audio' (square) or 'ebook' (portrait)
   /// cover and is ignored on Audiobookshelf, which has one.
   String getCoverUrl(String itemId, {int? width = 400, int? updatedAt, String? coverSlot}) {
-    var url = '$_cleanBaseUrl/api/items/$itemId/cover?token=$token';
+    var url = '$_cleanBaseUrl/api/items/$itemId/cover?${kIsWeb ? '' : 'token=$token'}';
     if (width != null) url += '&width=$width';
     if (updatedAt != null) url += '&ts=$updatedAt';
     return url;
@@ -1490,6 +1532,7 @@ class ApiService {
   /// ereaderDevices, Source }. Use on cold-start restore when you need the
   /// top-level extras (especially ereaderDevices, since /api/me drops them).
   Future<Map<String, dynamic>?> authorize() async {
+    if (kIsWeb) { final me = await getMe(); return me == null ? null : {'user': me}; }
     try {
       final response = await _authPost(
         Uri.parse('$_cleanBaseUrl/api/authorize'),
@@ -1505,6 +1548,23 @@ class ApiService {
   }
 
   /// Get current user info including all mediaProgress.
+  /// Cookie authority comes from a successful protected identity request, not
+  /// the login-only credential markers (the BookOrbit mapper omits those).
+  /// Preserve status here so restoration never treats a network failure as
+  /// confirmed expiry. Native getMe/offline behavior remains unchanged.
+  Future<({Map<String, dynamic>? user, int status})> browserSessionIdentity() async {
+    final response = await _authGet(
+      Uri.parse('$_cleanBaseUrl/api/me'),
+      timeout: const Duration(seconds: 10),
+    );
+    if (response.statusCode != 200) return (user: null, status: response.statusCode);
+    final user = jsonDecode(response.body) as Map<String, dynamic>;
+    if (user['id'] is! String || (user['id'] as String).isEmpty ||
+        user['username'] is! String || (user['username'] as String).isEmpty) {
+      throw const FormatException('Invalid browser identity');
+    }
+    return (user: user, status: 200);  }
+
   Future<Map<String, dynamic>?> getMe() async {
     try {
       final response = await _authGet(
@@ -1609,12 +1669,12 @@ class ApiService {
     final refreshToken = _refreshToken;
     if (refreshToken == null || refreshToken.isEmpty) return false;
     try {
-      final suffix = allDevices ? '?allDevices=1' : '';
+      final suffix = !kIsWeb && allDevices ? '?allDevices=1' : '';
       final response = await _post(
         Uri.parse('$_cleanBaseUrl/logout$suffix'),
         headers: {
           ...customHeaders,
-          'x-refresh-token': refreshToken,
+          if (!kIsWeb) 'x-refresh-token': refreshToken,
           if (!kIsWeb) 'User-Agent': userAgent,
         }).timeout(const Duration(seconds: 10));
       return response.statusCode >= 200 && response.statusCode < 300;
@@ -1674,7 +1734,7 @@ class ApiService {
             message: error.trim(),
           );
         }
-        final tokens = AuthTokens.fromResponse(data);
+        final tokens = AuthTokens.fromResponse(data, browser: kIsWeb);
         // The server rotates these together. Never adopt half a pair.
         if (tokens.accessToken != null && tokens.refreshToken != null) {
           _accessToken = tokens.accessToken!;
@@ -1836,7 +1896,7 @@ class ApiService {
 
   /// Build an author image URL.
   String getAuthorImageUrl(String authorId, {int width = 200, int? updatedAt}) {
-    var url = '$_cleanBaseUrl/api/authors/$authorId/image?width=$width&token=$token';
+    var url = '$_cleanBaseUrl/api/authors/$authorId/image?width=$width${kIsWeb ? '' : '&token=$token'}';
     if (updatedAt != null) url += '&ts=$updatedAt';
     return url;
   }
@@ -2305,7 +2365,11 @@ class ApiService {
           'audio/x-ms-wma',
         ],
       };
-      if (startOffset != null && startOffset > 0) body['startOffset'] = startOffset;
+      if (kIsWeb) {
+        body.addAll(BrowserAdapter.playbackOptions(browserCanPlayType));
+        body['deviceInfo'] = {..._deviceInfo, 'clientName': 'Absorb Web', 'deviceId': 'absorb-web-$deviceId'};
+      }
+      if (!kIsWeb && startOffset != null && startOffset > 0) body['startOffset'] = startOffset;
       final response = await _authPost(
         Uri.parse(url),
         body: jsonEncode(body),
@@ -2314,6 +2378,7 @@ class ApiService {
       debugPrint('[ABS] Play session response: ${response.statusCode}');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
+        if (kIsWeb) _webSessions.register(data);
         final tracks = data['audioTracks'] as List<dynamic>?;
         debugPrint('[ABS] Session ID: ${data['id']}');
         debugPrint('[ABS] Audio tracks: ${tracks?.length ?? 0}');
@@ -2344,6 +2409,7 @@ class ApiService {
     int? trackIndex,
     int? playMethod,
   }) {
+    if (kIsWeb) return BrowserAdapter.mediaUrl(Uri.base, contentUrl);
     // ABS servers with ROUTER_BASE_PATH set return contentUrls that already
     // include the base path (e.g. "/abs/public/session/.../track/0"). If the
     // user's server URL also includes that base path, blindly concatenating
@@ -2402,7 +2468,18 @@ class ApiService {
   /// dropped across reverse-proxy redirects); custom proxy headers still ride
   /// along via [mediaHeaders] when the downloader sets them.
   String buildFileUrl(String itemId, String ino) {
-    return '$_cleanBaseUrl/api/items/$itemId/file/$ino?token=$token';
+    return '$_cleanBaseUrl/api/items/$itemId/file/$ino${kIsWeb ? '' : '?token=$token'}';
+  }
+
+  /// Reads the authoritative open session after reconnect or uncertain sync.
+  Future<Map<String, dynamic>?> getPlaybackSession(String sessionId) async {
+    final response = await _authGet(Uri.parse('$_cleanBaseUrl/api/session/${Uri.encodeComponent(sessionId)}'));
+    if (response.statusCode == 404 || response.statusCode == 409) {
+      if (kIsWeb) _webSessions.invalidate(sessionId);
+      return null;
+    }
+    if (response.statusCode != 200) return null;
+    return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
   /// Sync playback progress. Returns true if sync succeeded.
@@ -2430,9 +2507,29 @@ class ApiService {
     int timeListened = 60,
   }) async {
     try {
+      if (kIsWeb && !isBookOrbit) {
+        // Cookie authority is enforced by the same-origin adapter/BFF. Do not
+        // retry accounting on 401 or detach its real transport with timeout.
+        // The owner has a 9s warning deadline and retains the actual flight.
+        final response = await _post(
+          Uri.parse('$_cleanBaseUrl/api/session/$sessionId/sync'),
+          headers: _headers,
+          body: jsonEncode({
+            ..._webSessions.next(sessionId),
+            'currentTime': currentTime,
+            'timeListened': timeListened,
+            'duration': duration,
+          }),
+        );
+        if ([401, 403, 404, 409].contains(response.statusCode)) {
+          _webSessions.invalidate(sessionId);
+        }
+        return response.statusCode;
+      }
       final response = await _authPost(
         Uri.parse('$_cleanBaseUrl/api/session/$sessionId/sync'),
         body: jsonEncode({
+          if (kIsWeb) ..._webSessions.next(sessionId),
           'currentTime': currentTime,
           'timeListened': timeListened,
           // Older servers use this duration unconditionally for the progress
@@ -2441,6 +2538,7 @@ class ApiService {
           'duration': duration,
         }),
         timeout: const Duration(seconds: 10));
+      if (kIsWeb && [404, 409].contains(response.statusCode)) _webSessions.invalidate(sessionId);
       return response.statusCode;
     } catch (_) {
       return null;
@@ -2451,10 +2549,18 @@ class ApiService {
   /// POST /api/session/:id/close
   Future<void> closePlaybackSession(String sessionId) async {
     try {
-      await _authPost(
-        Uri.parse('$_cleanBaseUrl/api/session/$sessionId/close'),
-        timeout: const Duration(seconds: 10));
+      if (kIsWeb && !isBookOrbit) {
+        await _post(Uri.parse('$_cleanBaseUrl/api/session/$sessionId/close'),
+            headers: _headers, body: jsonEncode(_webSessions.next(sessionId)))
+            .timeout(const Duration(seconds: 6));
+      } else {
+        await _authPost(
+          Uri.parse('$_cleanBaseUrl/api/session/$sessionId/close'),
+          body: kIsWeb ? jsonEncode(_webSessions.next(sessionId)) : null,
+          timeout: const Duration(seconds: 10));
+      }
     } catch (_) {}
+    if (kIsWeb) _webSessions.invalidate(sessionId);
   }
 
   /// Upsert a client-owned local playback session (downloaded/offline plays).
@@ -2463,6 +2569,7 @@ class ApiService {
   /// [session] is a fully-built session map; deviceInfo/mediaPlayer/playMethod
   /// are stamped here so they can't be omitted.
   Future<LocalSessionResult> syncLocalSession(Map<String, dynamic> session) async {
+    if (kIsWeb) return const LocalSessionResult(ok: false, serverTooOld: false);
     final reading = session['keepProgress'] == true;
     final kept = await _besideProgress(session);
     if (kept == null) return const LocalSessionResult(ok: false, serverTooOld: false);
@@ -2683,6 +2790,39 @@ class ApiService {
       return resp.statusCode == 200;
     } catch (_) {
       return false;
+    }
+  }
+
+  /// Browser playback authority. Null means only a confirmed ABS 404.
+  /// Native readers keep the legacy nullable method below. Do not use page or
+  /// local overlays here: this row fences writes against server audio truth.
+  Future<Map<String, dynamic>?> getWebItemProgress(String itemId) async {
+    try {
+      final progressPath = itemId.length > 36
+          ? '${itemId.substring(0, 36)}/${itemId.substring(37)}'
+          : itemId;
+      final resp = await _authGet(
+        Uri.parse('$_cleanBaseUrl/api/me/progress/$progressPath'),
+        timeout: const Duration(seconds: 10),
+      );
+      if (resp.statusCode == 404) return null;
+      if (resp.statusCode != 200) throw const WebProgressReadException();
+      final row = jsonDecode(resp.body);
+      if (row is! Map<String, dynamic>) {
+        throw const WebProgressReadException();
+      }
+      final position = row['currentTime'];
+      final duration = row['duration'];
+      if (position is! num || duration is! num ||
+          !position.isFinite || !duration.isFinite ||
+          position < 0 || duration < 0 ||
+          position > 31536000 || duration > 31536000 ||
+          position > duration || row['isFinished'] is! bool) {
+        throw const WebProgressReadException();
+      }
+      return row;
+    } catch (_) {
+      throw const WebProgressReadException();
     }
   }
 

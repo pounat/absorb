@@ -32,9 +32,9 @@ RUN flutter pub get \
 
 FROM nginx:1.28-alpine
 
-ENV ABS_UPSTREAM=http://audiobookshelf:80
+# Set the upstream through protected operator configuration; no default is shipped.
 
 COPY deploy/nginx/default.conf.template /etc/nginx/templates/default.conf.template
-COPY --from=build /src/build/web /usr/share/nginx/html/absorb
+COPY --from=build --chown=101:101 /src/build/web /usr/share/nginx/html/absorb
 
 EXPOSE 80

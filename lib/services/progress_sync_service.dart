@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -70,7 +71,7 @@ class ProgressSyncService {
       'timestamp': DateTime.now().millisecondsSinceEpoch,
     };
     await ScopedPrefs.setString('progress_$itemId', jsonEncode(data));
-    if (_staysOnPhone(itemId)) return;
+    if (kIsWeb || _staysOnPhone(itemId)) return;
 
     final pendingList = await ScopedPrefs.getStringList('pending_syncs');
     if (!pendingList.contains(itemId)) {
@@ -213,6 +214,7 @@ class ProgressSyncService {
     required String itemId,
     String? sessionId,
   }) async {
+    if (kIsWeb) return false; // Browser writes require a live session.
     if (!_isOnline) {
       debugPrint('[Sync] Skipped — offline');
       return false;
@@ -265,6 +267,7 @@ class ProgressSyncService {
   /// Flush all pending syncs (call when coming back online).
   /// Compares local vs server timestamps — last-write-wins.
   Future<void> flushPendingSync({ApiService? api, int maxItems = 5}) async {
+    if (kIsWeb) return; // No browser offline replay.
     if (!_isOnline || api == null) return;
 
     if (_isFlushing) {
@@ -574,6 +577,7 @@ class ProgressSyncService {
 
   /// Add listening time for an item that was played offline.
   Future<void> addOfflineListeningTime(String itemId, int seconds) async {
+    if (kIsWeb) return;
     if (seconds <= 0) return;
     final key = 'offline_listening_$itemId';
     final existing = await ScopedPrefs.getInt(key) ?? 0;
@@ -595,6 +599,7 @@ class ProgressSyncService {
   /// [migrateOrphanStreamingTime] on the next launch, so the most that can be
   /// lost is one accrual tick.
   Future<void> addStreamingPendingTime(String itemId, int seconds) async {
+    if (kIsWeb) return;
     if (seconds <= 0) return;
     final key = 'streaming_pending_$itemId';
     final existing = await ScopedPrefs.getInt(key) ?? 0;
@@ -633,6 +638,7 @@ class ProgressSyncService {
   /// ships it (via a fresh session). Run once at startup before playback opens
   /// any new streaming session.
   Future<void> migrateOrphanStreamingTime() async {
+    if (kIsWeb) return;
     final pending = List<String>.from(
         await ScopedPrefs.getStringList('pending_streaming_listening'));
     if (pending.isEmpty) return;
@@ -665,11 +671,13 @@ class ProgressSyncService {
   /// Called externally (e.g. from library_provider) and also internally
   /// from flushPendingSync's retry loop.
   Future<void> flushOfflineListeningTime({required ApiService api}) async {
+    if (kIsWeb) return;
     if (!_isOnline) return;
     await _flushOfflineListeningTimeInternal(api: api);
   }
 
   Future<void> _flushOfflineListeningTimeInternal({required ApiService api}) async {
+    if (kIsWeb) return;
     // Guard against concurrent runs. Without this, "back online" triggers
     // both the external flushOfflineListeningTime and flushPendingSync's
     // internal tail-call to this method, producing duplicate listening

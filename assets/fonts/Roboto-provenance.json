@@ -1,0 +1,24 @@
+{
+  "upstream": "google/fonts/ofl/roboto",
+  "license": "SIL-OFL-1.1",
+  "files": [
+    {
+      "file": "Roboto-OFL.txt",
+      "source": "https://api.github.com/repos/google/fonts/git/blobs/9c48e05a24fa2267e207ecf17560291b5621c197",
+      "sha256": "061402327a96aadb0bfb694a960ed289ecd38d383e396243831ab81feb109c41",
+      "bytes": 4394
+    },
+    {
+      "file": "Roboto-Italic-Variable.ttf",
+      "source": "https://api.github.com/repos/google/fonts/git/blobs/a122c13964daac37f1186a22603a5180d2dba5d6",
+      "sha256": "9725a847af6b460ffca162ae66d20dad48b01876137947180b42d7dcd7887182",
+      "bytes": 530944
+    },
+    {
+      "file": "Roboto-Variable.ttf",
+      "source": "https://api.github.com/repos/google/fonts/git/blobs/5522a368d9072fd88c299916e61fcff369949061",
+      "sha256": "d7598e12c5dbef095ff8272cfc55da0250bd07fbdecbac8a530b9b277872a134",
+      "bytes": 488584
+    }
+  ]
+}

@@ -168,6 +168,8 @@ flutter:
   assets:
     - assets/icon/
     - assets/audio/
+    - assets/fonts/Roboto-OFL.txt
+    - assets/fonts/Roboto-provenance.json
     - assets/foliate/
     - assets/foliate/foliate-js/
     - assets/foliate/foliate-js/vendor/
@@ -175,6 +177,13 @@ flutter:
     - shaders/page_curl.frag
     - shaders/page_ripple.frag
   fonts:
+    # Self-host Material's default font: strict same-origin CSP intentionally
+    # blocks Flutter Web's otherwise implicit fonts.gstatic.com fallback.
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/Roboto-Variable.ttf
+        - asset: assets/fonts/Roboto-Italic-Variable.ttf
+          style: italic
     - family: NotoSansJP
       fonts:
         - asset: assets/fonts/NotoSansJP-Regular.otf

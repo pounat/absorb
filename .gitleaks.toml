@@ -1,0 +1,12 @@
+title = "Absorb source scan"
+[extend]
+useDefault = true
+
+# Public upstream CocoaPods integrity value, not an authentication credential.
+# Require BOTH this exact file and complete checksum line; do not ignore locks.
+[[allowlists]]
+description = "Known public CocoaPods flutter_web_auth_2 checksum"
+condition = "AND"
+paths = ['''(^|/)ios/Podfile\.lock$''']
+regexTarget = "line"
+regexes = ['''^\s*flutter_web_auth_2: 646fc9df97a01c59e5eea99b237da2c6360f8439\s*$''']

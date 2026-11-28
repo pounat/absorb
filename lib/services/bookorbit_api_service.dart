@@ -1,5 +1,22 @@
 part of 'api_service.dart';
 
+/// BookOrbit 3.8 getPlaybackState returns null when there is no usable row;
+/// createPlaybackState uses CAS base 0 and returns revision 1. HTTP 404 means
+/// the audiobook/manifest is unavailable, NOT absence of listening history.
+/// Every update increments the revision exactly once. A malformed write ack
+/// is uncertain: callers must neither cache it nor retry the mutation.
+int bookOrbitWebRevision(dynamic state, {int? baseRevision}) {
+  if (state == null && baseRevision == null) return 0;
+  final value = state is Map<String, dynamic> ? state['revision'] : null;
+  if (value is! num || !value.isFinite || value < 0 ||
+      value > 9007199254740991 || value != value.truncateToDouble() ||
+      (baseRevision != null &&
+          (baseRevision >= 9007199254740991 || value != baseRevision + 1))) {
+    throw const FormatException('Invalid BookOrbit playback revision');
+  }
+  return value.toInt();
+}
+
 class _BoHttpError implements Exception {
   final int status;
   final String message;
@@ -117,6 +134,11 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
   static final Map<String, DateTime> _detailAt = {};
   static final Map<String, int> _revisions = {};
   static final Map<String, _BoListenSession> _sessions = {};
+  static int _webOwnerEpoch = 1;
+  final int _webOwner = _webOwnerEpoch;
+  void _checkWebOwner() {
+    if (kIsWeb && _webOwner != _webOwnerEpoch) throw _BoHttpError(409, 'BookOrbit account changed');
+  }
   static final Map<String, String> _coverVersions = {};
   static final Map<String, String> _bookLibrary = {};
   static final Map<String, _BoTicket> _tickets = {};
@@ -152,10 +174,11 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
   /// Keyed by book alone so the local and remote address of one server share
   /// them (cover URLs stay the same and image caches keep hitting). They are
   /// cleared whenever the signed-in account changes.
-  String _key(String id) => id;
+  String _key(String id) => kIsWeb ? '$_cleanBaseUrl|$_webOwner|$id' : id;
 
   /// Forget everything cached for the signed-in account.
   static void clearCaches() {
+    _webOwnerEpoch++;
     _ebookReadCards.clear();
     _manifests.clear();
     _manifestAt.clear();
@@ -283,6 +306,11 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
 
   @override
   Future<http.Response> _sendRefresh(String refreshToken) async {
+    if (kIsWeb) {
+      final r = await _post(Uri.parse('$_v1/auth/refresh'), body: '{}');
+      return http.Response(jsonEncode({'user': {'accessToken': BrowserAdapter.cookieSentinel,
+        'refreshToken': BrowserAdapter.cookieSentinel}}), r.statusCode);
+    }
     final r = await _post(
       Uri.parse('$_v1/auth/refresh'),
       headers: _refreshHeaders(refreshToken),
@@ -491,6 +519,16 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     required String password,
     Map<String, String> customHeaders = const {},
   }) async {
+    if (kIsWeb) {
+      try {
+        final r = await BrowserAdapter.post(Uri.base,
+          Uri.parse('${BrowserAdapter.currentOrigin(Uri.base)}/bookorbit/api/v1/auth/login'),
+          body: BrowserAdapter.loginBody(serverUrl, username, password))
+          .timeout(const Duration(seconds: 20));
+        if (r.statusCode != 200) return (null, r.statusCode);
+        return (await _loginShape(serverUrl, jsonDecode(r.body) as Map<String, dynamic>, const {}, null), 200);
+      } catch (_) { return (null, 0); }
+    }
     try {
       final r = await http
           .post(
@@ -536,13 +574,15 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     String? refreshToken,
   ) async {
     final rawUser = data['user'] as Map<String, dynamic>? ?? const {};
-    final access = data['accessToken'] as String?;
-    final version = access == null ? null : await _fetchVersion(serverUrl, access, customHeaders);
+    final access = kIsWeb && data['cookieAuthenticated'] == true ? BrowserAdapter.cookieSentinel : data['accessToken'] as String?;
+    if (kIsWeb) refreshToken = BrowserAdapter.cookieSentinel;
+    final version = kIsWeb || access == null ? null : await _fetchVersion(serverUrl, access, customHeaders);
     final user = BookOrbitMapper.user(rawUser)
       ..['accessToken'] = access
       ..['refreshToken'] = refreshToken;
     return {
       'user': user,
+      if (kIsWeb && data['webSessionRoute'] != null) 'webSessionRoute': data['webSessionRoute'],
       'userDefaultLibraryId': null,
       'serverSettings': {'version': version ?? ''},
       'ereaderDevices': const [],
@@ -971,6 +1011,10 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
 
   @override
   Future<bool> revokeServerSession({bool allDevices = false}) async {
+    if (kIsWeb) {
+      final r = await _post(Uri.parse('$_v1/auth/logout'), body: '{}');
+      return r.statusCode == 200;
+    }
     final refresh = _refreshToken;
     if (refresh == null) return false;
     try {
@@ -1020,21 +1064,31 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     return jsonDecode(r.body);
   }
 
-  Future<dynamic> _boGet(String path, [Map<String, dynamic>? query, Duration timeout = _timeout]) async =>
-      _decode(await super._authGet(_boUri(path, query), timeout: timeout));
+  Future<dynamic> _boGet(String path, [Map<String, dynamic>? query, Duration timeout = _timeout]) async {
+    _checkWebOwner();
+    final response = await super._authGet(_boUri(path, query), timeout: timeout);
+    _checkWebOwner();
+    return _decode(response);
+  }
 
-  Future<dynamic> _boPost(String path, [Object? body, Duration timeout = _timeout]) async =>
-      _decode(await super._authPost(
+  Future<dynamic> _boPost(String path, [Object? body, Duration timeout = _timeout]) async {
+    _checkWebOwner();
+    final response = await super._authPost(
         _boUri(path),
         body: body == null ? null : jsonEncode(body),
         timeout: timeout,
-      ));
+      );
+    _checkWebOwner();
+    return _decode(response);
+  }
 
   /// PUT, and DELETE with a body, which the shared helpers don't cover.
   Future<dynamic> _boSend(String method, String path, Object body) async {
+    _checkWebOwner();
     await _ensureFreshAccessToken();
     final payload = jsonEncode(body);
     Future<http.Response> send() async {
+      _checkWebOwner();
       final req = http.Request(method, _boUri(path))
         ..headers.addAll(_headers)
         ..body = payload;
@@ -4766,8 +4820,13 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
   }
 
   Future<Map<String, dynamic>?> _playbackState(String bookId) async {
+    if (kIsWeb) _revisions.remove(_key(bookId));
     try {
       final state = await _boGet('/audiobooks/$bookId/playback-state');
+      if (kIsWeb) {
+        _revisions[_key(bookId)] = bookOrbitWebRevision(state);
+        return state as Map<String, dynamic>?;
+      }
       if (state is Map<String, dynamic>) {
         final rev = (state['revision'] as num?)?.toInt();
         if (rev != null) _revisions[_key(bookId)] = rev;
@@ -4776,7 +4835,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
       _revisions[_key(bookId)] = 0;
       return null;
     } on _BoHttpError catch (e) {
-      if (e.status == 404) return null;
+      if (e.status == 404 && !kIsWeb) return null;
       rethrow;
     }
   }
@@ -4840,7 +4899,9 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
       try {
         fp = await _boGet('/books/$bookId/progress') as List<dynamic>;
         ebook = _ebookFrom(detail, fp);
-      } catch (_) {}
+      } catch (_) {
+        if (kIsWeb) rethrow; // An unknown authoritative spot must not become zero.
+      }
     }
     // A narrated EPUB with no audiobook: listening progress is the narration
     // position kept on the EPUB.
@@ -5064,7 +5125,11 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
         final state = await _playbackState(bookId);
         final serverAt = DateTime.tryParse(state?['capturedAt'] as String? ?? '');
         if (serverAt != null && serverAt.isAfter(when)) return 200;
-        base = _revisions[_key(bookId)] ?? 0;
+        base = _revisions[_key(bookId)];
+        if (kIsWeb && base == null) {
+          throw const FormatException('Missing BookOrbit playback revision');
+        }
+        base ??= 0; // Legacy native behavior; web requires a validated read.
       }
       try {
         final saved = await _boPut('/audiobooks/$bookId/playback-state', {
@@ -5074,9 +5139,17 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
           'operationId': operationId,
           'baseRevision': base,
           'manifestRevision': manifest['revision'],
-        }) as Map<String, dynamic>;
-        final rev = (saved['revision'] as num?)?.toInt();
-        if (rev != null) _revisions[_key(bookId)] = rev;
+        });
+        if (kIsWeb) {
+          // A successful HTTP response can still be an uncertain write. Never
+          // keep the old base or retry when its CAS acknowledgement is invalid.
+          _revisions.remove(_key(bookId));
+          _revisions[_key(bookId)] =
+              bookOrbitWebRevision(saved, baseRevision: base);
+        } else {
+          final rev = ((saved as Map<String, dynamic>)['revision'] as num?)?.toInt();
+          if (rev != null) _revisions[_key(bookId)] = rev;
+        }
         return 200;
       } on _BoHttpError catch (e) {
         if (e.status == 409) {
@@ -5610,6 +5683,77 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
   /// it in the reader). No request.
   bool knownNarrated(String bookId) => _narrations.containsKey(_key(bookId));
 
+  /// Static, non-sensitive diagnostics; never echo transport bodies or URLs.
+  String webReadAlongFailure(Object error) {
+    if (error is _BoHttpError && error.status == 401) {
+      return 'Your session expired. Sign in again to open Read Along.';
+    }
+    if (error is _BoHttpError && error.status == 403) {
+      return 'Read Along access to this book was denied.';
+    }
+    if (error is StateError || error is FormatException || error is TypeError) {
+      return 'Read Along could not validate this book’s timing or saved position. Nothing was reset.';
+    }
+    return 'Read Along could not load this book’s text or timing. Close and reopen to retry.';
+  }
+
+  /// Read-only descriptor for native EPUB narration or the native synchronized
+  /// companion EPUB. Reuses the mobile matching/timing policy; never changes audio.
+  String get readAlongOwnerKey => _key('readalong');
+  bool get readAlongOwnerActive => !kIsWeb || _webOwner == _webOwnerEpoch;
+  Future<({MediaOverlay overlay, int fileId, Map<String, dynamic> info, Map<String, dynamic> item, String base, OverlayClip? initial})?> webReadAlong(String bookId) async {
+    _checkWebOwner();
+    final item = await getLibraryItem(bookId);
+    if (item == null) return null;
+    final media = item['media'] as Map<String, dynamic>;
+    final matching = media['readAlongEpub'] as Map?;
+    if (matching != null) {
+      final fileId = int.tryParse('${matching['fileId']}');
+      final overlay = await readAlongTimingsFor(bookId);
+      if (fileId == null || overlay == null) return null;
+      final info = await _boGet('/epub/$bookId/info', {'fileId': '$fileId'}) as Map<String, dynamic>;
+      // Read the audiobook's authoritative track-local CAS position, not an
+      // EPUB progress row. Do not update the player's cached revision on open.
+      final state = await _boGet('/audiobooks/$bookId/playback-state');
+      bookOrbitWebRevision(state);
+      OverlayClip? initial;
+      if (state != null) {
+        final position = (state as Map)['positionMs'];
+        if (position is! num || !position.isFinite || position < 0 || position != position.roundToDouble()) {
+          throw StateError('Invalid native audiobook position');
+        }
+        final manifest = await _manifest(bookId);
+        if (manifest == null || manifest['assets'] is! List ||
+            !(manifest['assets'] as List).whereType<Map>().any((a) => a['assetId'] == state['assetId'])) {
+          throw StateError('Invalid native audiobook asset');
+        }
+        initial = overlay.clipAt(BookOrbitMapper.absolutePosition(manifest, state.cast<String, dynamic>()));
+      }
+      _checkWebOwner();
+      return (overlay: overlay, fileId: fileId, info: info, item: item, initial: initial,
+        base: '$_v1/epub/$bookId/publication/$fileId/');
+    }
+    final narration = await _narration(bookId);
+    if (narration == null) return null;
+    final info = await _boGet('/epub/$bookId/info', {'fileId': '${narration.fileId}'}) as Map<String, dynamic>;
+    final progress = await _boGet('/books/$bookId/progress');
+    if (progress is! List || progress.any((row) => row is! Map)) throw StateError('Invalid native narration progress');
+    OverlayClip? initial;
+    for (final row in progress.whereType<Map>()) {
+      if (row['fileId'] != narration.fileId) continue;
+      final seconds = row['positionSeconds'];
+      if (seconds != null) {
+        if (seconds is! num || !seconds.isFinite || seconds < 0) throw StateError('Invalid native narration position');
+        initial = narration.overlay.clipAt(seconds.toDouble());
+      } else if (row['mediaOverlayFragment'] is String) {
+        initial = narration.overlay.clipByFragment(row['mediaOverlayFragment'] as String, (row['mediaOverlaySectionIndex'] as num?)?.toInt());
+      }
+    }
+    _checkWebOwner();
+    return (overlay: narration.overlay, fileId: narration.fileId, info: info, item: item, initial: initial,
+      base: '$_v1/epub/$bookId/publication/${narration.fileId}/');
+  }
+
   Future<MediaOverlay?> narrationFor(String bookId) async {
     try {
       return (await _narration(bookId))?.overlay;
@@ -5893,13 +6037,28 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     final total = n.overlay.duration;
     final clip = n.overlay.clipAt(seconds);
     try {
-      await _writeFileProgress('${n.fileId}', {
+      if (kIsWeb) {
+        await _boPut('/books/$bookId/narration-progress', {
+          'writes': [{
+            'fileId': n.fileId,
+            'kind': 'narration',
+            'percentage': total > 0 ? (seconds / total * 100).clamp(0.0, 100.0) : 0,
+            'narration': {
+              'seconds': math.max(0.0, seconds),
+              'fragment': clip?.textSrc,
+              'sectionIndex': clip?.section,
+            },
+          }],
+        });
+      } else {
+        await _writeFileProgress('${n.fileId}', {
         'percentage': total > 0 ? (seconds / total * 100).clamp(0.0, 100.0) : 0,
         'positionSeconds': math.max(0.0, seconds),
         'mediaOverlayFragment': clip?.textSrc,
         'mediaOverlaySectionIndex': clip?.section,
         'source': 'narration',
       });
+      }
       return 200;
     } on _BoHttpError catch (e) {
       debugPrint('[BookOrbit] Narration position for $bookId not saved: ${e.status} ${e.message}');
@@ -5931,6 +6090,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     final chapters = picked.chapters;
     final useEdited = picked.edited;
     final saved = await _narrationPosition(bookId, n.fileId);
+    _checkWebOwner();
     final current = (saved?.seconds ?? 0).clamp(0.0, overlay.duration).toDouble();
     var tracks = overlay.audioTracks((t) => _narrationTrackPath(bookId, n.fileId, t));
     // Files BookOrbit can't find play out of the EPUB itself, the way an
@@ -5980,6 +6140,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
       'startedAt': now.millisecondsSinceEpoch,
       'updatedAt': saved?.updatedAt ?? now.millisecondsSinceEpoch,
       'audioTracks': tracks,
+      if (kIsWeb) 'webGeneration': _webOwner,
       'libraryItem': item,
     };
   }
@@ -5989,6 +6150,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     final manifest = await _manifest(bookId, fresh: true);
     if (manifest == null) return _startNarrationSession(bookId, detail);
     final state = await _playbackState(bookId);
+    _checkWebOwner();
     final item = BookOrbitMapper.item(detail: detail, manifest: manifest);
     final media = item['media'] as Map<String, dynamic>;
     final metadata = media['metadata'] as Map<String, dynamic>;
@@ -6024,6 +6186,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
       'startedAt': now.millisecondsSinceEpoch,
       'updatedAt': BookOrbitMapper.ms(state?['capturedAt']) ?? now.millisecondsSinceEpoch,
       'audioTracks': media['tracks'],
+      if (kIsWeb) 'webGeneration': _webOwner,
       'libraryItem': item,
     };
   }
@@ -6031,6 +6194,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
   _BoListenSession? _sessionFor(String sessionId) {
     final existing = _sessions[sessionId];
     if (existing != null) return existing;
+    if (kIsWeb) return null;
     final m = RegExp(r'^bo-(\d+)-(\d+)$').firstMatch(sessionId);
     if (m == null) return null;
     final started = DateTime.fromMillisecondsSinceEpoch(int.parse(m.group(2)!));
@@ -6057,7 +6221,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
     final span = end.difference(s.startedAt).inSeconds;
     final source = _platformSource();
     try {
-      await _boPost('/books/files/$fileId/sessions', {
+      await _boPost(kIsWeb ? '/books/${s.bookId}/files/$fileId/sessions' : '/books/files/$fileId/sessions', {
         'sessionId': s.sessionUuid,
         'startedAt': _iso(s.startedAt),
         'endedAt': _iso(end),
@@ -6127,6 +6291,7 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
       };
 
   Future<http.Response> _syncSession(String sessionId, Map<String, dynamic> body) async {
+    _checkWebOwner();
     final s = _sessionFor(sessionId);
     if (s == null) return _status(404, 'Unknown session');
     final currentTime = (body['currentTime'] as num?)?.toDouble();

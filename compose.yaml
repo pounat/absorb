@@ -1,0 +1,63 @@
+name: absorb-web
+services:
+  web-api:
+    image: absorb-web-api:${IMAGE_TAG:-local}
+    container_name: absorb-web-api
+    build:
+      context: .
+      target: api
+      args:
+        SOURCE_COMMIT: ${SOURCE_COMMIT:-development}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+
+      ABS_ALLOWED_UPSTREAMS: ${ABS_ALLOWED_UPSTREAMS:-}
+      ABS_ALLOW_HTTP: ${ABS_ALLOW_HTTP:-false}
+      PUBLIC_ORIGINS: ${PUBLIC_ORIGINS:?Configure exact trusted HTTPS origins}
+    expose: ["3000"]
+    networks: [default]
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=16m"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 384m
+    cpus: 1.0
+    pids_limit: 128
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/ping').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+  web:
+    image: absorb-web:${IMAGE_TAG:-local}
+    container_name: absorb-web
+    build:
+      context: .
+      target: web
+      args:
+        SOURCE_COMMIT: ${SOURCE_COMMIT:-development}
+    restart: unless-stopped
+    depends_on:
+      web-api:
+        condition: service_healthy
+    ports:
+      - "${WEB_BIND:-127.0.0.1}:${WEB_PORT:-13380}:8080"
+    networks: [default]
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=32m"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 128
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+networks:
+  default:
+    name: absorb-web

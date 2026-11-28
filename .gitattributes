@@ -1,3 +1,7 @@
 packages/** linguist-vendored
 assets/foliate/** linguist-vendored
 lib/l10n/app_localizations*.dart linguist-generated
+
+# Preserve upstream CRLF and the byte-exact third-party font license provenance.
+lib/main.dart whitespace=trailing-space,space-before-tab,cr-at-eol
+assets/fonts/Roboto-OFL.txt whitespace=-blank-at-eol

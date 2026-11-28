@@ -2,6 +2,7 @@ import 'dart:async';
 import 'expressive.dart';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../web_tesla/tesla_mode.dart';
 import '../l10n/app_localizations.dart';
 import '../services/audio_player_service.dart';
 import '../services/chapter_lookup.dart';
@@ -280,6 +281,8 @@ class _CardDualProgressBarState extends State<CardDualProgressBar> with WidgetsB
     final player = widget.player;
     final cast = ChromecastService();
     final active = widget.isActive || _isCastMode;
+    final tesla = TeslaMode.of(context);
+    final bookTouchHeight = tesla ? 56.0 : 32.0;
 
     return ListenableBuilder(
       listenable: _tickNotifier,
@@ -366,19 +369,29 @@ class _CardDualProgressBarState extends State<CardDualProgressBar> with WidgetsB
           child: Column(children: [
             // Book bar
             if (widget.showBookBar) ...[
-            if (_scrubberMode.allowsBookSeeking) ...[
-              SizedBox(height: 32, child: LayoutBuilder(builder: (_, cons) {
+            // Tesla always exposes whole-book seeking, independent of the
+            // native card's chapter-only scrubber preference.
+            if (tesla || _scrubberMode.allowsBookSeeking) ...[
+              SizedBox(height: bookTouchHeight, child: LayoutBuilder(builder: (_, cons) {
                 final w = cons.maxWidth;
                 final p = _bookDragValue ?? bookProgress;
                 return GestureDetector(
+                  key: tesla ? const ValueKey('tesla-book-seek') : null,
                   behavior: HitTestBehavior.opaque,
                   onHorizontalDragStart: active ? (d) { _bookDragStartDy = d.localPosition.dy; _bookScrubSpeed = 1.0; setState(() => _bookDragValue = (d.localPosition.dx / w).clamp(0.0, 1.0)); } : null,
                   onHorizontalDragUpdate: active ? (d) { _bookScrubSpeed = _scrubScale((d.localPosition.dy - _bookDragStartDy).abs()); setState(() => _bookDragValue = ((_bookDragValue ?? bookProgress) + d.delta.dx / w * _bookScrubSpeed).clamp(0.0, 1.0)); } : null,
                   onHorizontalDragEnd: active ? (_) { if (_bookDragValue != null) { final seekMs = (_bookDragValue! * totalDur * 1000).round(); _doSeek(seekMs); } setState(() => _bookDragValue = null); } : null,
                   onTapUp: active ? (d) { final v = (d.localPosition.dx / w).clamp(0.0, 1.0); final seekMs = (v * totalDur * 1000).round(); _doSeek(seekMs); } : null,
-                  child: CustomPaint(size: Size(w, 32), painter: AbsorbProgressPainter(progress: p, accent: widget.accent.withValues(alpha: 0.5), isDragging: _bookDragValue != null)),
+                  child: CustomPaint(size: Size(w, bookTouchHeight), painter: AbsorbProgressPainter(progress: p, accent: widget.accent.withValues(alpha: 0.5), isDragging: _bookDragValue != null)),
                 );
               })),
+              if (tesla)
+                Wrap(alignment: WrapAlignment.center, spacing: 16, runSpacing: 8, children: [
+                  Text(_fmt(displayedBookProgress * totalDur / speedDiv), style: tt.bodyLarge),
+                  Text('${(displayedBookProgress * 100).toStringAsFixed(1)}%', style: tt.bodyLarge),
+                  Text('-${_fmt((1 - displayedBookProgress) * totalDur / speedDiv)}', style: tt.bodyLarge),
+                ])
+              else
               Padding(padding: const EdgeInsets.only(top: 2, bottom: 6), child: Stack(
                 alignment: Alignment.center,
                 children: [

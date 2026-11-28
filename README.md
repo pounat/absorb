@@ -1,5 +1,20 @@
 # Absorb
 
+## Absorb Web / Tesla fork
+
+This GPL-3.0-or-later fork adapts the actual Absorb Flutter interface for a same-origin browser client. Upstream is [pounat/absorb](https://github.com/pounat/absorb), pinned initially at `c887df5c60a4562870069fbd21d841c066f53ecc`; original Nathan Poulson notices are preserved.
+
+- Browser runtime: enter a required, initially blank server URL for Audiobookshelf or BookOrbit. Every Add Account connection authenticates against that selected server; saved accounts retain isolated cookie routes. No permanent frontend service key.
+- Audiobookshelf uses owned native-style browser listening sessions. BookOrbit supports native audiobook progress and prepared narrated EPUB audio plus [passage-level Read Along](docs/bookorbit-readalong.md). Downloads remain permission-gated; native feature parity is not promised.
+- Public HTTPS destinations are policy-validated and DNS-pinned per account. Private servers and HTTP require an explicit operator allowlist; there is no hidden default upstream.
+- Build/run/update/rollback: [deployment](docs/deployment.md). Design and security boundaries: [architecture](docs/architecture.md) and [adapter contract](docs/web-adapter-contract.md).
+- Tests and rebuild instructions: [deployment](docs/deployment.md). Physical vehicle testing is **unverified**; follow the [parked Tesla checklist](docs/tesla-testing.md).
+- Matching source and license are served with the browser build at `/source/absorb-web-source.tar.gz` and `/source/LICENSE`. Roboto is self-hosted with its SIL Open Font License and pinned provenance under `assets/fonts/`.
+
+The original upstream README follows. Native features listed below are **not promises of browser support**: this initial web release excludes native downloads, casting/CarPlay/Android Auto, admin mutations, OIDC and API-key sign-in. See the known limitations rather than assuming parity with the mobile application.
+
+---
+
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/BarnabasApps)
 
 A modern audiobookshelf client with a card-based player experience.

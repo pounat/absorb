@@ -8,6 +8,8 @@ import 'dart:ui';
 // ignore: unnecessary_import
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
+import 'web_tesla/tesla_mode.dart';
 import 'package:flutter/services.dart';
 import 'package:app_links/app_links.dart';
 import 'package:provider/provider.dart';
@@ -255,12 +257,15 @@ Future<void> applyOrientationLock() async {
 }
 
 void main(List<String> args) async {
+  // Install before any service can print capability-bearing diagnostics.
+  if (kIsWeb && kReleaseMode) debugPrint = (String? message, {int? wrapWidth}) {};
   // On Windows and Linux the single sign-on window draws its title bar with
   // a second run of main, handed these args. Without this, that run started
   // all of Absorb inside the sign-in window and the sign-in never finished.
   if (runWebViewTitleBarWidget(args)) return;
   if (!AppPlatform.isWeb) HttpOverrides.global = _CertOverrides();
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  if (kIsWeb) await TeslaMode.load();
   ReadListenSync.instance.start();
   WindowsMediaControls.instance.start();
   BookOrbitApiService.placeReadingSpot = NarrationService.readingSpotSeconds;
@@ -564,7 +569,9 @@ class AbsorbApp extends StatelessWidget {
                         ),
                       );
                     }
-                  : null,
+                  : kIsWeb
+                      ? (context, child) => TeslaAdaptiveScope(child: child!)
+                      : null,
               locale: overrideLocale,
               localizationsDelegates: AppLocalizations.localizationsDelegates,
               supportedLocales: AppLocalizations.supportedLocales,
@@ -848,13 +855,15 @@ class _AuthGateState extends State<AuthGate> {
 
     // Initialize log service early so all debugPrint calls are captured in the
     // log file. This is critical for diagnosing startup freezes in production.
-    try {
-      await BetaLoggingNotice.applyDefault(ApiService.appVersionFull);
-    } catch (_) {}
-    try {
-      final loggingEnabled = await PlayerSettings.getLoggingEnabled();
-      await LogService().init(loggingEnabled);
-    } catch (_) {}
+    if (!(kIsWeb && kReleaseMode)) {
+      try {
+        await BetaLoggingNotice.applyDefault(ApiService.appVersionFull);
+      } catch (_) {}
+      try {
+        final loggingEnabled = await PlayerSettings.getLoggingEnabled();
+        await LogService().init(loggingEnabled);
+      } catch (_) {}
+    }
 
     final sw = Stopwatch()..start();
     debugPrint('[Init] _initServices started');

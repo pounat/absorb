@@ -111,13 +111,9 @@ class _LoginScreenState extends State<LoginScreen>
       final auth = context.read<AuthProvider>();
       final account = widget.prefillAccount;
       if (AppPlatform.isWeb) {
-        final serverUrl = serverUrlFromWebOrigin(Uri.base);
-        if (serverUrl != null) {
-          _setInitialHeaders(account?.customHeaders ?? auth.customHeaders);
-          setState(() => _backend = account?.backend ?? auth.backend);
-          _prefillLogin(serverUrl, account?.username ?? auth.username ?? '');
-          return;
-        }
+        _setInitialHeaders(const {});
+        setState(() => _backend = ServerBackend.audiobookshelf);
+        return; // All browser sign-in fields start blank; never restore a private target.
       }
       if (account != null) {
         _setInitialHeaders(account.customHeaders);
@@ -140,15 +136,13 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _prefillLogin(String serverUrl, String username) {
-    final resolvedServerUrl = AppPlatform.isWeb
-        ? serverUrlFromWebOrigin(Uri.base) ?? serverUrl
-        : serverUrl;
+    final resolvedServerUrl = serverUrl;
     final uri = Uri.tryParse(resolvedServerUrl);
     final protocol = uri?.scheme == 'http' || uri?.scheme == 'https'
         ? '${uri!.scheme}://'
         : _protocol;
     setState(() => _protocol = protocol);
-    _serverController.text = resolvedServerUrl.startsWith(protocol)
+    _serverController.text = !AppPlatform.isWeb && resolvedServerUrl.startsWith(protocol)
         ? resolvedServerUrl.substring(protocol.length)
         : resolvedServerUrl;
     _usernameController.text = username;
@@ -200,9 +194,7 @@ class _LoginScreenState extends State<LoginScreen>
   String _lastValidatedServer = '';
 
   String get _resolvedServerUrl {
-    if (AppPlatform.isWeb) {
-      return serverUrlFromWebOrigin(Uri.base) ?? '';
-    }
+    if (AppPlatform.isWeb) return _serverController.text.trim();
 
     final serverText = _serverController.text.trim();
     final cleanUrl = serverText.replaceAll(RegExp(r'^https?://'), '');
@@ -212,7 +204,7 @@ class _LoginScreenState extends State<LoginScreen>
   /// BookOrbit only says whether it can send email once someone asks, so the
   /// link shows wherever password sign-in is on and the dialog handles a no.
   bool get _canOfferPasswordReset =>
-      _backend.isBookOrbit && _serverValid && _oidcConfig?.hasLocalAuth != false;
+      !AppPlatform.isWeb && _backend.isBookOrbit && _serverValid && _oidcConfig?.hasLocalAuth != false;
 
   void _forgotPassword() {
     final username = _usernameController.text.trim();
@@ -267,6 +259,7 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Map<String, String> _collectHeaders() {
+    if (AppPlatform.isWeb) return {};
     final headers = <String, String>{};
     for (final (keyCtrl, valCtrl) in _headerControllers) {
       final k = keyCtrl.text.trim();
@@ -279,6 +272,18 @@ class _LoginScreenState extends State<LoginScreen>
   Future<void> _checkServer() async {
     final fullUrl = _resolvedServerUrl;
     if (fullUrl.isEmpty) return;
+    if (AppPlatform.isWeb) {
+      final uri = Uri.tryParse(fullUrl);
+      final valid = uri != null && ['https', 'http'].contains(uri.scheme) &&
+          uri.host.isNotEmpty && uri.userInfo.isEmpty && !uri.hasQuery && !uri.hasFragment;
+      setState(() {
+        _serverChecking = false;
+        _serverValid = valid;
+        _serverError = valid ? null : 'Enter a complete HTTPS Server URL without credentials, query or fragment.';
+        _lastValidatedServer = valid ? fullUrl : '';
+      });
+      return; // Destination validation and the only remote login happen in the BFF.
+    }
 
     try {
       final headers = _collectHeaders();
@@ -330,7 +335,7 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _handleLogin() async {
-    final apiKey = _apiKeyController.text.trim();
+    final apiKey = AppPlatform.isWeb ? '' : _apiKeyController.text.trim();
 
     if (_backend.isBookOrbit && BookOrbitApiService.passwordLink(apiKey) != null) {
       final link = Uri.parse(apiKey);
@@ -691,11 +696,13 @@ class _LoginScreenState extends State<LoginScreen>
                                   ],
                                   const SizedBox(height: 14),
 
-                                  if (!AppPlatform.isWeb) _buildInputField(
+                                  _buildInputField(
                                     controller: _serverController,
-                                    label: l.loginServerAddress,
+                                    label: AppPlatform.isWeb ? 'Server URL' : l.loginServerAddress,
                                     hint: l.loginServerHint,
-                                    helperText: l.loginServerHelper,
+                                    helperText: AppPlatform.isWeb
+                                        ? 'HTTPS required. Private servers need operator approval.'
+                                        : l.loginServerHelper,
                                     keyboardType: TextInputType.url,
                                     textInputAction: TextInputAction.next,
                                     onFieldSubmitted: (_) {
@@ -708,7 +715,7 @@ class _LoginScreenState extends State<LoginScreen>
                                       }
                                     },
                                     cs: cs,
-                                    prefixIcon: Padding(
+                                    prefixIcon: AppPlatform.isWeb ? null : Padding(
                                       padding: const EdgeInsets.only(left: 8),
                                       child: DropdownButtonHideUnderline(
                                         child: DropdownButton<String>(
@@ -780,7 +787,7 @@ class _LoginScreenState extends State<LoginScreen>
 
                                   // Advanced: Custom Headers — must be before server validation
                                   const SizedBox(height: 8),
-                                  GestureDetector(
+                                  if (!AppPlatform.isWeb) GestureDetector(
                                     onTap: () => setState(() => _showAdvanced = !_showAdvanced),
                                     child: Row(
                                       children: [
@@ -791,7 +798,7 @@ class _LoginScreenState extends State<LoginScreen>
                                       ],
                                     ),
                                   ),
-                                  if (_showAdvanced) ...[
+                                  if (!AppPlatform.isWeb && _showAdvanced) ...[
                                     const SizedBox(height: 8),
                                     Text(l.loginCustomHttpHeaders, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: cs.onSurfaceVariant.withValues(alpha: 0.7))),
                                     const SizedBox(height: 4),
@@ -1023,7 +1030,7 @@ class _LoginScreenState extends State<LoginScreen>
                   ),
 
                   // ── Saved accounts quick-switch ──
-                  _buildSavedAccounts(cs, tt),
+                  if (!AppPlatform.isWeb) _buildSavedAccounts(cs, tt),
                         ],
                       ),
                     ),
@@ -1080,7 +1087,7 @@ class _LoginScreenState extends State<LoginScreen>
         border: Border.all(color: cs.error.withValues(alpha: 0.3)),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(l.loginBookOrbitPreview, style: tt.bodySmall?.copyWith(color: cs.error, height: 1.4)),
+        Text(AppPlatform.isWeb ? 'BookOrbit supports browsing, covers and listening inside Absorb, including EPUB narration and saved positions. Embedded reading and administration are not enabled in Absorb Web.' : l.loginBookOrbitPreview, style: tt.bodySmall?.copyWith(color: cs.error, height: 1.4)),
         Wrap(children: [
           TextButton.icon(
             onPressed: () => launchUrl(
@@ -1145,6 +1152,16 @@ class _LoginScreenState extends State<LoginScreen>
               : (selection) {
                   final picked = selection.first;
                   if (picked == _backend) return;
+                  if (AppPlatform.isWeb) {
+                    _debounce?.cancel();
+                    _serverController.clear();
+                    _usernameController.clear();
+                    _passwordController.clear();
+                    _lastValidatedServer = '';
+                    _serverValid = false;
+                    _serverChecking = false;
+                    _serverError = null;
+                  }
                   setState(() {
                     _backend = picked;
                     _oidcConfig = null;
