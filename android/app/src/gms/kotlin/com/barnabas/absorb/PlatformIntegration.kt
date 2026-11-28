@@ -94,6 +94,12 @@ object PlatformIntegration {
                         }
                         result.success(true)
                     }
+                    "publishDownloads" -> {
+                        call.argument<String>("downloads")?.let {
+                            WearPlayerBridge.publishDownloads(context.applicationContext, it)
+                        }
+                        result.success(true)
+                    }
                     "publishBookmarks" -> {
                         val itemId = call.argument<String>("itemId")
                         val bookmarks = call.argument<String>("bookmarks")
@@ -110,6 +116,7 @@ object PlatformIntegration {
                             title = call.argument<String>("title"),
                             author = call.argument<String>("author"),
                             chapter = call.argument<String>("chapter"),
+                            episodeId = call.argument<String>("episodeId"),
                             isPlaying = call.argument<Boolean>("isPlaying") ?: false,
                             positionMs = (call.argument<Number>("positionMs") ?: 0).toLong(),
                             durationMs = (call.argument<Number>("durationMs") ?: 0).toLong(),

@@ -34,6 +34,7 @@ object WearPlayerBridge {
     const val STATE_PATH = "/absorb/player/state/v1"
     const val CHAPTERS_PATH = "/absorb/player/chapters/v1"
     const val BOOKMARKS_PATH = "/absorb/player/bookmarks/v1"
+    const val DOWNLOADS_PATH = "/absorb/player/downloads/v1"
 
     private const val KEY_PAYLOAD = "payload"
     private const val KEY_ISSUED_AT = "issuedAt"
@@ -82,6 +83,7 @@ object WearPlayerBridge {
         title: String?,
         author: String?,
         chapter: String?,
+        episodeId: String? = null,
         isPlaying: Boolean,
         positionMs: Long,
         durationMs: Long,
@@ -115,6 +117,7 @@ object WearPlayerBridge {
                 val payload = JSONObject().apply {
                     put("hasBook", hasBook)
                     put("itemId", itemId ?: JSONObject.NULL)
+                    put("episodeId", episodeId ?: JSONObject.NULL)
                     put("title", title ?: JSONObject.NULL)
                     put("author", author ?: JSONObject.NULL)
                     put("chapter", chapter ?: JSONObject.NULL)
@@ -182,6 +185,23 @@ object WearPlayerBridge {
                 Log.i(TAG, "published chapters for $itemId")
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to publish chapters", e)
+            }
+        }
+    }
+
+    /** What this phone has downloaded, for the watch's auto download.
+     *  [downloadsJson] is `{"serverUrl":"..","items":[{"itemId","episodeId",
+     *  "title","author"}]}`. Not urgent: the watch fetches when it can. */
+    fun publishDownloads(context: Context, downloadsJson: String) {
+        scope.launch {
+            try {
+                val request = PutDataMapRequest.create(DOWNLOADS_PATH).apply {
+                    dataMap.putByteArray(KEY_PAYLOAD, downloadsJson.toByteArray(Charsets.UTF_8))
+                }.asPutDataRequest()
+                Wearable.getDataClient(context.applicationContext).putDataItem(request).await()
+                Log.i(TAG, "published the downloads list")
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to publish downloads", e)
             }
         }
     }

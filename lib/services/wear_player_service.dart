@@ -1,11 +1,14 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'audio_player_service.dart';
 import 'bookmark_service.dart';
+import 'download_service.dart';
 import 'home_widget_service.dart';
 import 'sleep_timer_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Pushes the active playback snapshot to the paired Wear OS companion
 /// (AbsorbWear) via the Wearable Data Layer.
@@ -56,7 +59,49 @@ class WearPlayerService {
       final player = AudioPlayerService();
       publishBookmarks(player.currentEpisodeId == null ? player.currentItemId : null);
     });
+    DownloadService().addListener(_downloadsChanged);
+    _downloadsChanged();
   }
+
+  Timer? _downloadsSoon;
+  String? _downloadsPublished;
+
+  /// The download service speaks on every percent; the list only goes to
+  /// the watch once it has settled.
+  void _downloadsChanged() {
+    _downloadsSoon?.cancel();
+    _downloadsSoon = Timer(const Duration(seconds: 5), publishDownloads);
+  }
+
+  /// What this phone has downloaded, so a watch set to keep the phone's
+  /// books can fetch them too. Sent only when the list changes.
+  Future<void> publishDownloads() async {
+    if (!_supported) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final items = <Map<String, dynamic>>[];
+      for (final d in DownloadService().downloadedItems) {
+        // An episode is kept under "<podcast id>-<episode id>".
+        final id = d.itemId;
+        final episode = id.length > 37 && id[36] == '-' && _uuid.hasMatch(id.substring(0, 36));
+        items.add({
+          'itemId': episode ? id.substring(0, 36) : id,
+          if (episode) 'episodeId': id.substring(37),
+          'title': d.title,
+          'author': d.author,
+        });
+      }
+      items.sort((a, b) => '${a['itemId']}${a['episodeId']}'.compareTo('${b['itemId']}${b['episodeId']}'));
+      final payload = jsonEncode({'serverUrl': prefs.getString('server_url') ?? '', 'items': items});
+      if (payload == _downloadsPublished) return;
+      _downloadsPublished = payload;
+      await _channel.invokeMethod<void>('publishDownloads', {'downloads': payload});
+    } catch (e) {
+      debugPrint('[WearPlayer] publishDownloads failed: $e');
+    }
+  }
+
+  static final _uuid = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
 
   /// The playing book's bookmarks as this phone has them, server ones and
   /// ones kept here alike, so the watch lists what the phone lists. Sent
@@ -127,6 +172,7 @@ class WearPlayerService {
     String? title,
     String? author,
     String? chapter,
+    String? episodeId,
     required bool isPlaying,
     required int positionMs,
     required int durationMs,
@@ -162,6 +208,7 @@ class WearPlayerService {
         'title': title,
         'author': author,
         'chapter': chapter,
+        'episodeId': episodeId,
         'isPlaying': isPlaying,
         'positionMs': positionMs,
         'durationMs': durationMs,

@@ -953,6 +953,7 @@ class HomeWidgetService {
       title: hasBook ? player.currentTitle : null,
       author: hasBook ? player.currentAuthor : null,
       chapter: hasBook ? chapterTitle : null,
+      episodeId: hasBook ? player.currentEpisodeId : null,
       isPlaying: player.isPlaying,
       positionMs: player.position.inMilliseconds,
       durationMs: (player.totalDuration * 1000).round(),
