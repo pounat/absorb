@@ -26,6 +26,29 @@ class BookDockFileResult {
   const BookDockFileResult({required this.success, this.duplicate = false, this.message});
 }
 
+/// A book already in a library that a dock file can be added to as another
+/// format.
+class BookDockJoinBook {
+  final int bookId;
+  final String title;
+  final List<String> authors;
+
+  /// Why BookOrbit thinks the file is this book: 'isbn', 'work_id' or
+  /// 'title_author'. Null for a book picked by hand.
+  final String? reason;
+
+  const BookDockJoinBook({required this.bookId, required this.title, this.authors = const [], this.reason});
+}
+
+/// Whether a dock file headed for a library may join a book there, and the
+/// book BookOrbit thinks it belongs with.
+class BookDockJoinOptions {
+  final bool canJoin;
+  final BookDockJoinBook? suggested;
+
+  const BookDockJoinOptions({this.canJoin = false, this.suggested});
+}
+
 /// One field filing would change: [from] is what the file says, null when
 /// it says nothing.
 class BookDockChange {

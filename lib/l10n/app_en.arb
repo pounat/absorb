@@ -7828,5 +7828,151 @@
   "appColorMine": "My color",
   "appColorSoftCoverDescription": "Follows the cover of the playing book, toned down",
   "appColorTrueCoverDescription": "Follows the cover of the playing book, close to its real color",
-  "appColorMineDescription": "One color you pick, whatever is playing"
+  "appColorMineDescription": "One color you pick, whatever is playing",
+  "bookDockJoinTitle": "New book or one you have?",
+  "bookDockJoinHint": "Adding to a book you have puts this file in that book's folder as another format.",
+  "bookDockJoinNewBook": "Add as a new book",
+  "bookDockJoinSameIsbn": "Same ISBN",
+  "bookDockJoinSameTitle": "Same title and author",
+  "bookDockJoinLooksSame": "Looks like the same book",
+  "bookDockJoinSearch": "Search {library}",
+  "@bookDockJoinSearch": {
+    "placeholders": {
+      "library": {
+        "type": "String"
+      }
+    }
+  },
+  "bookDockJoinSearchFailed": "Couldn't search this library",
+  "bookDockJoinNoMatch": "No books match",
+  "bookDockJoined": "Added to {title} as another format",
+  "@bookDockJoined": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "breqHoldForReview": "Hold for review",
+  "breqHoldForReviewHint": "Wait for you to check it instead of going straight to the library",
+  "breqGrabbedHeld": "Download started. It will wait for your check",
+  "boSettingsSaved": "Settings saved",
+  "boDestinationNone": "None",
+  "boDestinationPick": "Pick a library",
+  "boReqSettingsTitle": "Request settings",
+  "boReqSettingsSubtitle": "Downloading, checking and where requests go",
+  "boReqAutoSection": "Downloading without asking",
+  "boReqAutoGrab": "Download without asking",
+  "boReqAutoGrabHint": "An approved request goes to the best release BookOrbit finds, with nobody picking it",
+  "boReqAutoGrabScore": "Lowest score to download: {score}",
+  "@boReqAutoGrabScore": {
+    "placeholders": {
+      "score": {
+        "type": "int"
+      }
+    }
+  },
+  "boReqAutoRetry": "Try the next release when one fails",
+  "boReqAttempts": "Tries for each request: {count}",
+  "@boReqAttempts": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "boReqSearchSection": "Looking again",
+  "boReqAutoSearch": "Keep looking when nothing is found",
+  "boReqAutoSearchHint": "Only does anything with Download without asking turned on",
+  "boReqSearchInterval": "Look again every {hours, plural, =1{hour} other{{hours} hours}}",
+  "@boReqSearchInterval": {
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      }
+    }
+  },
+  "boReqSearchMaxAge": "Stop looking after {days, plural, =1{1 day} other{{days} days}}",
+  "@boReqSearchMaxAge": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "boReqVerifySection": "Checking a download",
+  "boReqVerify": "Check downloads against the request",
+  "boReqVerifyHint": "A poor match waits in Book Dock instead of going to the library",
+  "boReqVerifyThreshold": "Match needed to add it: {percent}%",
+  "@boReqVerifyThreshold": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "boReqFormatsSection": "A download with several formats",
+  "boReqFormatsAll": "Keep every format",
+  "boReqFormatsPreferred": "Keep only the preferred format",
+  "boReqDestSection": "Where requests go",
+  "boReqDestHint": "Used when nobody picks a library for a request",
+  "boReqDestEbooks": "E-books",
+  "boReqDestAudiobooks": "Audiobooks",
+  "boReqProfilesNote": "Release profiles are set on the BookOrbit web page.",
+  "boDockSettingsTitle": "Book Dock settings",
+  "boDockSettingsSubtitle": "What happens to a file when it lands in Book Dock",
+  "boDockPaused": "Pause Book Dock",
+  "boDockPausedHint": "Stops taking in and adding files until you turn this off",
+  "boDockFolder": "Folder on the server",
+  "boDockLookUp": "Look up details online",
+  "boDockLookUpHint": "Searches for a file's details when it arrives",
+  "boDockAutoSection": "Adding to a library without asking",
+  "boDockAutoFile": "Add good matches without asking",
+  "boDockAutoFileHint": "Off, every file waits in Book Dock until you add it",
+  "boDockAutoThreshold": "Match needed: {percent}%",
+  "@boDockAutoThreshold": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "boDockAutoLibrary": "Library for files with no destination",
+  "boDockAutoLibraryNone": "None, they wait for you",
+  "boDockModeSection": "Details to use",
+  "boDockModeSafe": "Found details first, the file's own for the rest",
+  "boDockModeFound": "Only details found online",
+  "boDockModeFile": "Only the file's own details",
+  "boDockModeFileHint": "Adds every ready file, whatever its match",
+  "boDockUnsortedSection": "Files with no library",
+  "boDockAutoJoin": "Add to a matching book",
+  "boDockAutoJoinHint": "Only when they share an ISBN, ASIN or provider id. Title and author alone never count.",
+  "boDockKeepOriginal": "Keep the original file",
+  "boDockKeepOriginalHint": "Leaves the file in Book Dock's folder, for a download client that is still sharing it",
+  "upcomingReleasesBulkRescanDates": "Rescan dates",
+  "upcomingReleasesBulkDatesChecked": "{count, plural, =1{1 date checked} other{{count} dates checked}}",
+  "@upcomingReleasesBulkDatesChecked": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "upcomingReleasesBulkDatesFailed": "{count} failed",
+  "@upcomingReleasesBulkDatesFailed": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "audibleSeriesBulkAddUpcoming": "Add to upcoming",
+  "audibleSeriesBulkAdded": "{count, plural, =1{1 added to upcoming releases} other{{count} added to upcoming releases}}",
+  "@audibleSeriesBulkAdded": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }

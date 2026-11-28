@@ -24,6 +24,7 @@ class BookOrbitAdminAccess {
   final bool manageEmail;
   final bool viewUserActivity;
   final bool manageAppSettings;
+  final bool manageBookDock;
   final String userId;
 
   const BookOrbitAdminAccess({
@@ -34,10 +35,11 @@ class BookOrbitAdminAccess {
     this.manageEmail = false,
     this.viewUserActivity = false,
     this.manageAppSettings = false,
+    this.manageBookDock = false,
     required this.userId,
   });
 
-  bool get any => isSuperuser || manageUsers || manageLibraries || manageEmail || manageAppSettings;
+  bool get any => isSuperuser || manageUsers || manageLibraries || manageEmail || manageAppSettings || manageBookDock;
 
   /// Whether the email settings have anything for this user.
   bool get email => emailSend || manageEmail;
@@ -55,6 +57,7 @@ class BookOrbitAdminAccess {
       manageEmail: superuser || perms.contains('manage_email'),
       viewUserActivity: superuser || perms.contains('view_user_activity'),
       manageAppSettings: superuser || perms.contains('manage_app_settings'),
+      manageBookDock: superuser || perms.contains('manage_book_dock'),
       userId: '${user?['id'] ?? ''}',
     );
   }
@@ -506,3 +509,213 @@ const boScanSchedules = {
   'daily': '0 3 * * *',
   'weekly': '0 3 * * 0',
 };
+
+/// How BookOrbit handles book requests on its own: what it downloads
+/// without being asked, how it checks a download, and where it files one.
+/// Release profiles (the ranked edition lists) stay on the web.
+class BoRequestSettings {
+  static const minGrabScore = 50;
+  static const maxGrabAttempts = 10;
+  static const maxSearchIntervalHours = 168;
+  static const maxSearchAgeDays = 365;
+
+  final bool autoGrab;
+  final int autoGrabMinScore;
+  final bool autoRetry;
+  final int maxAttempts;
+  final bool autoSearch;
+  final int searchIntervalHours;
+  final int searchMaxAgeDays;
+  final bool verification;
+  final int verificationThreshold;
+
+  /// 'all' keeps every format a download holds, 'preferred' only the best.
+  final String importFormats;
+  final int? ebookLibraryId;
+  final int? ebookFolderId;
+  final int? audiobookLibraryId;
+  final int? audiobookFolderId;
+
+  const BoRequestSettings({
+    this.autoGrab = false,
+    this.autoGrabMinScore = 80,
+    this.autoRetry = true,
+    this.maxAttempts = 3,
+    this.autoSearch = false,
+    this.searchIntervalHours = 24,
+    this.searchMaxAgeDays = 60,
+    this.verification = true,
+    this.verificationThreshold = 70,
+    this.importFormats = 'all',
+    this.ebookLibraryId,
+    this.ebookFolderId,
+    this.audiobookLibraryId,
+    this.audiobookFolderId,
+  });
+
+  factory BoRequestSettings.fromJson(Map<String, dynamic> j) {
+    int? at(String kind, String key) {
+      final d = (j['destinations'] as Map?)?[kind];
+      return d is Map ? (d[key] as num?)?.toInt() : null;
+    }
+
+    return BoRequestSettings(
+      autoGrab: j['autoGrabEnabled'] == true,
+      autoGrabMinScore: (j['autoGrabMinScore'] as num?)?.toInt() ?? 80,
+      autoRetry: j['autoRetryEnabled'] != false,
+      maxAttempts: (j['maxAutoGrabAttempts'] as num?)?.toInt() ?? 3,
+      autoSearch: j['autoSearchEnabled'] == true,
+      searchIntervalHours: (j['autoSearchIntervalHours'] as num?)?.toInt() ?? 24,
+      searchMaxAgeDays: (j['autoSearchMaxAgeDays'] as num?)?.toInt() ?? 60,
+      verification: j['verificationEnabled'] != false,
+      verificationThreshold: (j['verificationThreshold'] as num?)?.toInt() ?? 70,
+      importFormats: j['importFormats'] == 'preferred' ? 'preferred' : 'all',
+      ebookLibraryId: at('ebook', 'libraryId'),
+      ebookFolderId: at('ebook', 'folderId'),
+      audiobookLibraryId: at('audiobook', 'libraryId'),
+      audiobookFolderId: at('audiobook', 'folderId'),
+    );
+  }
+
+  BoRequestSettings copyWith({
+    bool? autoGrab,
+    int? autoGrabMinScore,
+    bool? autoRetry,
+    int? maxAttempts,
+    bool? autoSearch,
+    int? searchIntervalHours,
+    int? searchMaxAgeDays,
+    bool? verification,
+    int? verificationThreshold,
+    String? importFormats,
+    ({int? libraryId, int? folderId})? ebook,
+    ({int? libraryId, int? folderId})? audiobook,
+  }) =>
+      BoRequestSettings(
+        autoGrab: autoGrab ?? this.autoGrab,
+        autoGrabMinScore: autoGrabMinScore ?? this.autoGrabMinScore,
+        autoRetry: autoRetry ?? this.autoRetry,
+        maxAttempts: maxAttempts ?? this.maxAttempts,
+        autoSearch: autoSearch ?? this.autoSearch,
+        searchIntervalHours: searchIntervalHours ?? this.searchIntervalHours,
+        searchMaxAgeDays: searchMaxAgeDays ?? this.searchMaxAgeDays,
+        verification: verification ?? this.verification,
+        verificationThreshold: verificationThreshold ?? this.verificationThreshold,
+        importFormats: importFormats ?? this.importFormats,
+        ebookLibraryId: ebook == null ? ebookLibraryId : ebook.libraryId,
+        ebookFolderId: ebook == null ? ebookFolderId : ebook.folderId,
+        audiobookLibraryId: audiobook == null ? audiobookLibraryId : audiobook.libraryId,
+        audiobookFolderId: audiobook == null ? audiobookFolderId : audiobook.folderId,
+      );
+
+  /// Only what differs from [saved], which is all the server needs.
+  Map<String, dynamic> changesFrom(BoRequestSettings saved) {
+    final ebookMoved = ebookLibraryId != saved.ebookLibraryId || ebookFolderId != saved.ebookFolderId;
+    final audiobookMoved =
+        audiobookLibraryId != saved.audiobookLibraryId || audiobookFolderId != saved.audiobookFolderId;
+    return {
+      if (autoGrab != saved.autoGrab) 'autoGrabEnabled': autoGrab,
+      if (autoGrabMinScore != saved.autoGrabMinScore) 'autoGrabMinScore': autoGrabMinScore,
+      if (autoRetry != saved.autoRetry) 'autoRetryEnabled': autoRetry,
+      if (maxAttempts != saved.maxAttempts) 'maxAutoGrabAttempts': maxAttempts,
+      if (autoSearch != saved.autoSearch) 'autoSearchEnabled': autoSearch,
+      if (searchIntervalHours != saved.searchIntervalHours) 'autoSearchIntervalHours': searchIntervalHours,
+      if (searchMaxAgeDays != saved.searchMaxAgeDays) 'autoSearchMaxAgeDays': searchMaxAgeDays,
+      if (verification != saved.verification) 'verificationEnabled': verification,
+      if (verificationThreshold != saved.verificationThreshold) 'verificationThreshold': verificationThreshold,
+      if (importFormats != saved.importFormats) 'importFormats': importFormats,
+      if (ebookMoved || audiobookMoved)
+        'destinations': {
+          if (ebookMoved) 'ebook': {'libraryId': ebookLibraryId, 'folderId': ebookFolderId},
+          if (audiobookMoved) 'audiobook': {'libraryId': audiobookLibraryId, 'folderId': audiobookFolderId},
+        },
+    };
+  }
+}
+
+/// How the Book Dock treats a file that lands in it.
+class BoDockSettings {
+  static const minFileThreshold = 50;
+
+  /// Where the dock folder sits on the server. Read only.
+  final String path;
+  final bool lookUpDetails;
+  final bool autoFile;
+  final int autoFileThreshold;
+  final int? libraryId;
+  final int? folderId;
+
+  /// 'safe_merge', 'fetched_only' or 'embedded_only'.
+  final String detailsMode;
+
+  /// Null on a server from before these two.
+  final bool? autoJoin;
+  final bool? keepOriginal;
+
+  const BoDockSettings({
+    this.path = '',
+    this.lookUpDetails = true,
+    this.autoFile = false,
+    this.autoFileThreshold = 85,
+    this.libraryId,
+    this.folderId,
+    this.detailsMode = 'safe_merge',
+    this.autoJoin,
+    this.keepOriginal,
+  });
+
+  factory BoDockSettings.fromJson(Map<String, dynamic> j) => BoDockSettings(
+        path: '${j['bookDockPath'] ?? ''}',
+        lookUpDetails: j['autoFetchMetadata'] != false,
+        autoFile: j['autoFinalizeEnabled'] == true,
+        autoFileThreshold: (j['autoFinalizeThreshold'] as num?)?.toInt() ?? 85,
+        libraryId: (j['autoFinalizeLibraryId'] as num?)?.toInt(),
+        folderId: (j['autoFinalizeFolderId'] as num?)?.toInt(),
+        detailsMode: '${j['autoFinalizeMetadataMode'] ?? 'safe_merge'}',
+        autoJoin: j['unsortedAutoJoin'] as bool?,
+        keepOriginal: j['unsortedKeepOriginal'] as bool?,
+      );
+
+  BoDockSettings copyWith({
+    bool? lookUpDetails,
+    bool? autoFile,
+    int? autoFileThreshold,
+    ({int? libraryId, int? folderId})? destination,
+    String? detailsMode,
+    bool? autoJoin,
+    bool? keepOriginal,
+  }) =>
+      BoDockSettings(
+        path: path,
+        lookUpDetails: lookUpDetails ?? this.lookUpDetails,
+        autoFile: autoFile ?? this.autoFile,
+        autoFileThreshold: autoFileThreshold ?? this.autoFileThreshold,
+        libraryId: destination == null ? libraryId : destination.libraryId,
+        folderId: destination == null ? folderId : destination.folderId,
+        detailsMode: detailsMode ?? this.detailsMode,
+        autoJoin: autoJoin ?? this.autoJoin,
+        keepOriginal: keepOriginal ?? this.keepOriginal,
+      );
+
+  /// The server takes the whole set at once.
+  Map<String, dynamic> toJson() => {
+        'autoFetchMetadata': lookUpDetails,
+        'autoFinalizeEnabled': autoFile,
+        'autoFinalizeThreshold': autoFileThreshold,
+        'autoFinalizeLibraryId': libraryId,
+        'autoFinalizeFolderId': folderId,
+        'autoFinalizeMetadataMode': detailsMode,
+        'unsortedAutoJoin': ?autoJoin,
+        'unsortedKeepOriginal': ?keepOriginal,
+      };
+
+  bool sameAs(BoDockSettings o) =>
+      lookUpDetails == o.lookUpDetails &&
+      autoFile == o.autoFile &&
+      autoFileThreshold == o.autoFileThreshold &&
+      libraryId == o.libraryId &&
+      folderId == o.folderId &&
+      detailsMode == o.detailsMode &&
+      autoJoin == o.autoJoin &&
+      keepOriginal == o.keepOriginal;
+}

@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/expressive.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -41,10 +44,26 @@ class _BookRequestReleaseScreenState extends State<BookRequestReleaseScreen> {
   late final _authorCtrl = TextEditingController(text: widget.request.authors.isEmpty ? '' : widget.request.authors.first);
   late final _isbnCtrl = TextEditingController(text: widget.request.isbn ?? '');
 
+  // The last choice sticks, for someone who checks every download.
+  static const _holdKey = 'breq_hold_for_review';
+  bool _canHold = false;
+  bool _hold = false;
+
   @override
   void initState() {
     super.initState();
     _search();
+    _loadHold();
+  }
+
+  Future<void> _loadHold() async {
+    final can = await widget.api.canHoldBookRequestForReview();
+    final hold = (await SharedPreferences.getInstance()).getBool(_holdKey) ?? false;
+    if (!mounted) return;
+    setState(() {
+      _canHold = can;
+      _hold = hold;
+    });
   }
 
   @override
@@ -92,30 +111,49 @@ class _BookRequestReleaseScreenState extends State<BookRequestReleaseScreen> {
   Future<void> _grab(BookRequestRelease release) async {
     final l = AppLocalizations.of(context)!;
     if (_grabbing != null) return;
+    var hold = _hold;
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l.breqGrabTitle),
-        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(release.title, style: const TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 6),
-          Text([
-            release.indexerName,
-            if (release.sizeBytes != null) formatReleaseSize(release.sizeBytes),
-            if (release.formats.isNotEmpty) release.formats.join(', ').toUpperCase(),
-          ].join(' · ')),
-          if (release.vipOnly) ...[
-            const SizedBox(height: 8),
-            Text(l.breqReleaseVipWarning, style: TextStyle(color: Theme.of(ctx).colorScheme.error)),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) => AlertDialog(
+          title: Text(l.breqGrabTitle),
+          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(release.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            Text([
+              release.indexerName,
+              if (release.sizeBytes != null) formatReleaseSize(release.sizeBytes),
+              if (release.formats.isNotEmpty) release.formats.join(', ').toUpperCase(),
+            ].join(' · ')),
+            if (release.vipOnly) ...[
+              const SizedBox(height: 8),
+              Text(l.breqReleaseVipWarning, style: TextStyle(color: Theme.of(ctx).colorScheme.error)),
+            ],
+            if (_canHold) ...[
+              const SizedBox(height: 8),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                dense: true,
+                value: hold,
+                onChanged: (v) => setDialog(() => hold = v ?? false),
+                title: Text(l.breqHoldForReview),
+                subtitle: Text(l.breqHoldForReviewHint),
+              ),
+            ],
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.cancel)),
+            TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l.breqGrab)),
           ],
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l.cancel)),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(l.breqGrab)),
-        ],
+        ),
       ),
     );
     if (ok != true || !mounted) return;
+    if (hold != _hold) {
+      _hold = hold;
+      unawaited(SharedPreferences.getInstance().then((p) => p.setBool(_holdKey, hold)));
+    }
     setState(() => _grabbing = release.guid);
 
     // BookOrbit's picker looks inside the release first and won't send one
@@ -136,7 +174,9 @@ class _BookRequestReleaseScreenState extends State<BookRequestReleaseScreen> {
       return;
     }
 
-    final res = await widget.api.grabBookRequestRelease(widget.request.id, release.indexerId, release.guid);
+    final held = _canHold && hold;
+    final res = await widget.api
+        .grabBookRequestRelease(widget.request.id, release.indexerId, release.guid, holdForReview: held);
     if (!mounted) return;
     setState(() => _grabbing = null);
     if (res.request == null) {
@@ -144,7 +184,7 @@ class _BookRequestReleaseScreenState extends State<BookRequestReleaseScreen> {
           icon: Icons.error_outline_rounded);
       return;
     }
-    showOverlayToast(context, l.breqGrabbed, icon: Icons.download_rounded);
+    showOverlayToast(context, held ? l.breqGrabbedHeld : l.breqGrabbed, icon: Icons.download_rounded);
     Navigator.pop(context, res.request);
   }
 
@@ -511,6 +551,7 @@ class _ReviewSheetState extends State<_ReviewSheet> {
           'title' => l.titleLabel,
           'authors' => l.authorLabel,
           'isbn13' => l.isbnLabel,
+          'year' => l.yearLabel,
           _ => field,
         };
     Color verdictColor(String verdict) => switch (verdict) {

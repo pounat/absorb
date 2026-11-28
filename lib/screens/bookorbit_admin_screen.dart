@@ -8,8 +8,10 @@ import '../services/bookorbit_admin.dart';
 import '../widgets/absorb_page_header.dart';
 import '../widgets/overlay_toast.dart';
 import 'bookorbit_api_key_settings_screen.dart';
+import 'bookorbit_dock_settings_screen.dart';
 import 'bookorbit_email_screen.dart';
 import 'bookorbit_libraries_screen.dart';
+import 'bookorbit_request_settings_screen.dart';
 import 'bookorbit_users_screen.dart';
 
 /// BookOrbit server administration: users, libraries and mail servers.
@@ -106,6 +108,20 @@ class _BookOrbitAdminScreenState extends State<BookOrbitAdminScreen> {
                 title: l.boApiKeysTitle,
                 subtitle: l.boAdminApiKeysSubtitle,
                 onTap: () => _open(const BookOrbitApiKeySettingsScreen()),
+              ),
+            if (access?.manageAppSettings == true)
+              _HubTile(
+                icon: Icons.download_for_offline_rounded,
+                title: l.boReqSettingsTitle,
+                subtitle: l.boReqSettingsSubtitle,
+                onTap: () => _open(const BookOrbitRequestSettingsScreen()),
+              ),
+            if (access?.manageBookDock == true)
+              _HubTile(
+                icon: Icons.inbox_rounded,
+                title: l.boDockSettingsTitle,
+                subtitle: l.boDockSettingsSubtitle,
+                onTap: () => _open(const BookOrbitDockSettingsScreen()),
               ),
           ],
         ),

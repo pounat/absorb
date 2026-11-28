@@ -25726,6 +25726,420 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'One color you pick, whatever is playing'**
   String get appColorMineDescription;
+
+  /// No description provided for @bookDockJoinTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'New book or one you have?'**
+  String get bookDockJoinTitle;
+
+  /// No description provided for @bookDockJoinHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Adding to a book you have puts this file in that book\'s folder as another format.'**
+  String get bookDockJoinHint;
+
+  /// No description provided for @bookDockJoinNewBook.
+  ///
+  /// In en, this message translates to:
+  /// **'Add as a new book'**
+  String get bookDockJoinNewBook;
+
+  /// No description provided for @bookDockJoinSameIsbn.
+  ///
+  /// In en, this message translates to:
+  /// **'Same ISBN'**
+  String get bookDockJoinSameIsbn;
+
+  /// No description provided for @bookDockJoinSameTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Same title and author'**
+  String get bookDockJoinSameTitle;
+
+  /// No description provided for @bookDockJoinLooksSame.
+  ///
+  /// In en, this message translates to:
+  /// **'Looks like the same book'**
+  String get bookDockJoinLooksSame;
+
+  /// No description provided for @bookDockJoinSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search {library}'**
+  String bookDockJoinSearch(String library);
+
+  /// No description provided for @bookDockJoinSearchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t search this library'**
+  String get bookDockJoinSearchFailed;
+
+  /// No description provided for @bookDockJoinNoMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'No books match'**
+  String get bookDockJoinNoMatch;
+
+  /// No description provided for @bookDockJoined.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to {title} as another format'**
+  String bookDockJoined(String title);
+
+  /// No description provided for @breqHoldForReview.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold for review'**
+  String get breqHoldForReview;
+
+  /// No description provided for @breqHoldForReviewHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Wait for you to check it instead of going straight to the library'**
+  String get breqHoldForReviewHint;
+
+  /// No description provided for @breqGrabbedHeld.
+  ///
+  /// In en, this message translates to:
+  /// **'Download started. It will wait for your check'**
+  String get breqGrabbedHeld;
+
+  /// No description provided for @boSettingsSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings saved'**
+  String get boSettingsSaved;
+
+  /// No description provided for @boDestinationNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get boDestinationNone;
+
+  /// No description provided for @boDestinationPick.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a library'**
+  String get boDestinationPick;
+
+  /// No description provided for @boReqSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Request settings'**
+  String get boReqSettingsTitle;
+
+  /// No description provided for @boReqSettingsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading, checking and where requests go'**
+  String get boReqSettingsSubtitle;
+
+  /// No description provided for @boReqAutoSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading without asking'**
+  String get boReqAutoSection;
+
+  /// No description provided for @boReqAutoGrab.
+  ///
+  /// In en, this message translates to:
+  /// **'Download without asking'**
+  String get boReqAutoGrab;
+
+  /// No description provided for @boReqAutoGrabHint.
+  ///
+  /// In en, this message translates to:
+  /// **'An approved request goes to the best release BookOrbit finds, with nobody picking it'**
+  String get boReqAutoGrabHint;
+
+  /// No description provided for @boReqAutoGrabScore.
+  ///
+  /// In en, this message translates to:
+  /// **'Lowest score to download: {score}'**
+  String boReqAutoGrabScore(int score);
+
+  /// No description provided for @boReqAutoRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Try the next release when one fails'**
+  String get boReqAutoRetry;
+
+  /// No description provided for @boReqAttempts.
+  ///
+  /// In en, this message translates to:
+  /// **'Tries for each request: {count}'**
+  String boReqAttempts(int count);
+
+  /// No description provided for @boReqSearchSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Looking again'**
+  String get boReqSearchSection;
+
+  /// No description provided for @boReqAutoSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep looking when nothing is found'**
+  String get boReqAutoSearch;
+
+  /// No description provided for @boReqAutoSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Only does anything with Download without asking turned on'**
+  String get boReqAutoSearchHint;
+
+  /// No description provided for @boReqSearchInterval.
+  ///
+  /// In en, this message translates to:
+  /// **'Look again every {hours, plural, =1{hour} other{{hours} hours}}'**
+  String boReqSearchInterval(int hours);
+
+  /// No description provided for @boReqSearchMaxAge.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop looking after {days, plural, =1{1 day} other{{days} days}}'**
+  String boReqSearchMaxAge(int days);
+
+  /// No description provided for @boReqVerifySection.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking a download'**
+  String get boReqVerifySection;
+
+  /// No description provided for @boReqVerify.
+  ///
+  /// In en, this message translates to:
+  /// **'Check downloads against the request'**
+  String get boReqVerify;
+
+  /// No description provided for @boReqVerifyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'A poor match waits in Book Dock instead of going to the library'**
+  String get boReqVerifyHint;
+
+  /// No description provided for @boReqVerifyThreshold.
+  ///
+  /// In en, this message translates to:
+  /// **'Match needed to add it: {percent}%'**
+  String boReqVerifyThreshold(int percent);
+
+  /// No description provided for @boReqFormatsSection.
+  ///
+  /// In en, this message translates to:
+  /// **'A download with several formats'**
+  String get boReqFormatsSection;
+
+  /// No description provided for @boReqFormatsAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep every format'**
+  String get boReqFormatsAll;
+
+  /// No description provided for @boReqFormatsPreferred.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep only the preferred format'**
+  String get boReqFormatsPreferred;
+
+  /// No description provided for @boReqDestSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Where requests go'**
+  String get boReqDestSection;
+
+  /// No description provided for @boReqDestHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Used when nobody picks a library for a request'**
+  String get boReqDestHint;
+
+  /// No description provided for @boReqDestEbooks.
+  ///
+  /// In en, this message translates to:
+  /// **'E-books'**
+  String get boReqDestEbooks;
+
+  /// No description provided for @boReqDestAudiobooks.
+  ///
+  /// In en, this message translates to:
+  /// **'Audiobooks'**
+  String get boReqDestAudiobooks;
+
+  /// No description provided for @boReqProfilesNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Release profiles are set on the BookOrbit web page.'**
+  String get boReqProfilesNote;
+
+  /// No description provided for @boDockSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Book Dock settings'**
+  String get boDockSettingsTitle;
+
+  /// No description provided for @boDockSettingsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What happens to a file when it lands in Book Dock'**
+  String get boDockSettingsSubtitle;
+
+  /// No description provided for @boDockPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause Book Dock'**
+  String get boDockPaused;
+
+  /// No description provided for @boDockPausedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Stops taking in and adding files until you turn this off'**
+  String get boDockPausedHint;
+
+  /// No description provided for @boDockFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Folder on the server'**
+  String get boDockFolder;
+
+  /// No description provided for @boDockLookUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Look up details online'**
+  String get boDockLookUp;
+
+  /// No description provided for @boDockLookUpHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Searches for a file\'s details when it arrives'**
+  String get boDockLookUpHint;
+
+  /// No description provided for @boDockAutoSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Adding to a library without asking'**
+  String get boDockAutoSection;
+
+  /// No description provided for @boDockAutoFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Add good matches without asking'**
+  String get boDockAutoFile;
+
+  /// No description provided for @boDockAutoFileHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Off, every file waits in Book Dock until you add it'**
+  String get boDockAutoFileHint;
+
+  /// No description provided for @boDockAutoThreshold.
+  ///
+  /// In en, this message translates to:
+  /// **'Match needed: {percent}%'**
+  String boDockAutoThreshold(int percent);
+
+  /// No description provided for @boDockAutoLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Library for files with no destination'**
+  String get boDockAutoLibrary;
+
+  /// No description provided for @boDockAutoLibraryNone.
+  ///
+  /// In en, this message translates to:
+  /// **'None, they wait for you'**
+  String get boDockAutoLibraryNone;
+
+  /// No description provided for @boDockModeSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Details to use'**
+  String get boDockModeSection;
+
+  /// No description provided for @boDockModeSafe.
+  ///
+  /// In en, this message translates to:
+  /// **'Found details first, the file\'s own for the rest'**
+  String get boDockModeSafe;
+
+  /// No description provided for @boDockModeFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Only details found online'**
+  String get boDockModeFound;
+
+  /// No description provided for @boDockModeFile.
+  ///
+  /// In en, this message translates to:
+  /// **'Only the file\'s own details'**
+  String get boDockModeFile;
+
+  /// No description provided for @boDockModeFileHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Adds every ready file, whatever its match'**
+  String get boDockModeFileHint;
+
+  /// No description provided for @boDockUnsortedSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Files with no library'**
+  String get boDockUnsortedSection;
+
+  /// No description provided for @boDockAutoJoin.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to a matching book'**
+  String get boDockAutoJoin;
+
+  /// No description provided for @boDockAutoJoinHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Only when they share an ISBN, ASIN or provider id. Title and author alone never count.'**
+  String get boDockAutoJoinHint;
+
+  /// No description provided for @boDockKeepOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep the original file'**
+  String get boDockKeepOriginal;
+
+  /// No description provided for @boDockKeepOriginalHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leaves the file in Book Dock\'s folder, for a download client that is still sharing it'**
+  String get boDockKeepOriginalHint;
+
+  /// No description provided for @upcomingReleasesBulkRescanDates.
+  ///
+  /// In en, this message translates to:
+  /// **'Rescan dates'**
+  String get upcomingReleasesBulkRescanDates;
+
+  /// No description provided for @upcomingReleasesBulkDatesChecked.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 date checked} other{{count} dates checked}}'**
+  String upcomingReleasesBulkDatesChecked(int count);
+
+  /// No description provided for @upcomingReleasesBulkDatesFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} failed'**
+  String upcomingReleasesBulkDatesFailed(int count);
+
+  /// No description provided for @audibleSeriesBulkAddUpcoming.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to upcoming'**
+  String get audibleSeriesBulkAddUpcoming;
+
+  /// No description provided for @audibleSeriesBulkAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 added to upcoming releases} other{{count} added to upcoming releases}}'**
+  String audibleSeriesBulkAdded(int count);
 }
 
 class _AppLocalizationsDelegate

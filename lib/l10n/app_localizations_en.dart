@@ -15196,4 +15196,271 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get appColorMineDescription =>
       'One color you pick, whatever is playing';
+
+  @override
+  String get bookDockJoinTitle => 'New book or one you have?';
+
+  @override
+  String get bookDockJoinHint =>
+      'Adding to a book you have puts this file in that book\'s folder as another format.';
+
+  @override
+  String get bookDockJoinNewBook => 'Add as a new book';
+
+  @override
+  String get bookDockJoinSameIsbn => 'Same ISBN';
+
+  @override
+  String get bookDockJoinSameTitle => 'Same title and author';
+
+  @override
+  String get bookDockJoinLooksSame => 'Looks like the same book';
+
+  @override
+  String bookDockJoinSearch(String library) {
+    return 'Search $library';
+  }
+
+  @override
+  String get bookDockJoinSearchFailed => 'Couldn\'t search this library';
+
+  @override
+  String get bookDockJoinNoMatch => 'No books match';
+
+  @override
+  String bookDockJoined(String title) {
+    return 'Added to $title as another format';
+  }
+
+  @override
+  String get breqHoldForReview => 'Hold for review';
+
+  @override
+  String get breqHoldForReviewHint =>
+      'Wait for you to check it instead of going straight to the library';
+
+  @override
+  String get breqGrabbedHeld => 'Download started. It will wait for your check';
+
+  @override
+  String get boSettingsSaved => 'Settings saved';
+
+  @override
+  String get boDestinationNone => 'None';
+
+  @override
+  String get boDestinationPick => 'Pick a library';
+
+  @override
+  String get boReqSettingsTitle => 'Request settings';
+
+  @override
+  String get boReqSettingsSubtitle =>
+      'Downloading, checking and where requests go';
+
+  @override
+  String get boReqAutoSection => 'Downloading without asking';
+
+  @override
+  String get boReqAutoGrab => 'Download without asking';
+
+  @override
+  String get boReqAutoGrabHint =>
+      'An approved request goes to the best release BookOrbit finds, with nobody picking it';
+
+  @override
+  String boReqAutoGrabScore(int score) {
+    return 'Lowest score to download: $score';
+  }
+
+  @override
+  String get boReqAutoRetry => 'Try the next release when one fails';
+
+  @override
+  String boReqAttempts(int count) {
+    return 'Tries for each request: $count';
+  }
+
+  @override
+  String get boReqSearchSection => 'Looking again';
+
+  @override
+  String get boReqAutoSearch => 'Keep looking when nothing is found';
+
+  @override
+  String get boReqAutoSearchHint =>
+      'Only does anything with Download without asking turned on';
+
+  @override
+  String boReqSearchInterval(int hours) {
+    String _temp0 = intl.Intl.pluralLogic(
+      hours,
+      locale: localeName,
+      other: '$hours hours',
+      one: 'hour',
+    );
+    return 'Look again every $_temp0';
+  }
+
+  @override
+  String boReqSearchMaxAge(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days',
+      one: '1 day',
+    );
+    return 'Stop looking after $_temp0';
+  }
+
+  @override
+  String get boReqVerifySection => 'Checking a download';
+
+  @override
+  String get boReqVerify => 'Check downloads against the request';
+
+  @override
+  String get boReqVerifyHint =>
+      'A poor match waits in Book Dock instead of going to the library';
+
+  @override
+  String boReqVerifyThreshold(int percent) {
+    return 'Match needed to add it: $percent%';
+  }
+
+  @override
+  String get boReqFormatsSection => 'A download with several formats';
+
+  @override
+  String get boReqFormatsAll => 'Keep every format';
+
+  @override
+  String get boReqFormatsPreferred => 'Keep only the preferred format';
+
+  @override
+  String get boReqDestSection => 'Where requests go';
+
+  @override
+  String get boReqDestHint => 'Used when nobody picks a library for a request';
+
+  @override
+  String get boReqDestEbooks => 'E-books';
+
+  @override
+  String get boReqDestAudiobooks => 'Audiobooks';
+
+  @override
+  String get boReqProfilesNote =>
+      'Release profiles are set on the BookOrbit web page.';
+
+  @override
+  String get boDockSettingsTitle => 'Book Dock settings';
+
+  @override
+  String get boDockSettingsSubtitle =>
+      'What happens to a file when it lands in Book Dock';
+
+  @override
+  String get boDockPaused => 'Pause Book Dock';
+
+  @override
+  String get boDockPausedHint =>
+      'Stops taking in and adding files until you turn this off';
+
+  @override
+  String get boDockFolder => 'Folder on the server';
+
+  @override
+  String get boDockLookUp => 'Look up details online';
+
+  @override
+  String get boDockLookUpHint =>
+      'Searches for a file\'s details when it arrives';
+
+  @override
+  String get boDockAutoSection => 'Adding to a library without asking';
+
+  @override
+  String get boDockAutoFile => 'Add good matches without asking';
+
+  @override
+  String get boDockAutoFileHint =>
+      'Off, every file waits in Book Dock until you add it';
+
+  @override
+  String boDockAutoThreshold(int percent) {
+    return 'Match needed: $percent%';
+  }
+
+  @override
+  String get boDockAutoLibrary => 'Library for files with no destination';
+
+  @override
+  String get boDockAutoLibraryNone => 'None, they wait for you';
+
+  @override
+  String get boDockModeSection => 'Details to use';
+
+  @override
+  String get boDockModeSafe =>
+      'Found details first, the file\'s own for the rest';
+
+  @override
+  String get boDockModeFound => 'Only details found online';
+
+  @override
+  String get boDockModeFile => 'Only the file\'s own details';
+
+  @override
+  String get boDockModeFileHint => 'Adds every ready file, whatever its match';
+
+  @override
+  String get boDockUnsortedSection => 'Files with no library';
+
+  @override
+  String get boDockAutoJoin => 'Add to a matching book';
+
+  @override
+  String get boDockAutoJoinHint =>
+      'Only when they share an ISBN, ASIN or provider id. Title and author alone never count.';
+
+  @override
+  String get boDockKeepOriginal => 'Keep the original file';
+
+  @override
+  String get boDockKeepOriginalHint =>
+      'Leaves the file in Book Dock\'s folder, for a download client that is still sharing it';
+
+  @override
+  String get upcomingReleasesBulkRescanDates => 'Rescan dates';
+
+  @override
+  String upcomingReleasesBulkDatesChecked(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count dates checked',
+      one: '1 date checked',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String upcomingReleasesBulkDatesFailed(int count) {
+    return '$count failed';
+  }
+
+  @override
+  String get audibleSeriesBulkAddUpcoming => 'Add to upcoming';
+
+  @override
+  String audibleSeriesBulkAdded(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count added to upcoming releases',
+      one: '1 added to upcoming releases',
+    );
+    return '$_temp0';
+  }
 }

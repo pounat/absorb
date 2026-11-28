@@ -514,10 +514,16 @@ class ApiService {
   /// account may not add books to a library.
   Future<List<BookDockDestination>> bookDockDestinations() async => const [];
 
-  /// File dock item [itemId] into [destination].
+  /// File dock item [itemId] into [destination], as a new book or, with
+  /// [joinBookId], as another format of a book already there.
   Future<BookDockFileResult> fileBookDockItem(
-          String itemId, BookDockDestination destination) async =>
+          String itemId, BookDockDestination destination, {int? joinBookId}) async =>
       const BookDockFileResult(success: false);
+
+  /// Whether dock item [itemId] could join a book in [destination].
+  Future<BookDockJoinOptions> bookDockJoinOptions(
+          String itemId, BookDockDestination destination) async =>
+      const BookDockJoinOptions();
 
   /// Remove a dock item and its file from the server.
   Future<bool> removeBookDockItem(String itemId) async => false;
@@ -620,9 +626,14 @@ class ApiService {
   Future<({String? status, String? error})> inspectBookRequestRelease(int id, int indexerId, String guid) async =>
       (status: null, error: null);
 
-  /// Sends the picked release to the download client.
-  Future<({BookRequest? request, String? error})> grabBookRequestRelease(int id, int indexerId, String guid) async =>
+  /// Sends the picked release to the download client. With [holdForReview]
+  /// the download waits for a check once it lands, however well it matches.
+  Future<({BookRequest? request, String? error})> grabBookRequestRelease(int id, int indexerId, String guid,
+          {bool holdForReview = false}) async =>
       (request: null, error: null);
+
+  /// Whether this server can hold a picked release for a check.
+  Future<bool> canHoldBookRequestForReview() async => false;
 
   /// Why a downloaded request is waiting for a manual check.
   Future<({BookRequestReview? review, String? error})> bookRequestReview(int id) async =>

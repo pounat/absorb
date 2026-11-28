@@ -4,7 +4,10 @@ import '../l10n/app_localizations.dart';
 import '../screens/book_requests_screen.dart';
 import '../services/api_service.dart';
 import '../services/book_requests.dart';
+import '../services/rmab_service.dart';
+import '../services/scoped_prefs.dart';
 import 'overlay_toast.dart';
+import 'rmab_config_sheet.dart' show kRmabBaseUrlKey, kRmabApiTokenKey, loadRmabCustomHeaders;
 
 typedef AudibleRequestBook = ({Map<String, dynamic> book, String? seriesName});
 
@@ -84,4 +87,45 @@ Future<bool> requestAudibleBooks(
   }
   showOverlayToast(context, message, icon: ok ? Icons.check_circle_outline_rounded : Icons.error_outline_rounded);
   return ok;
+}
+
+/// Asks ReadMeABook for each of [books], one after another, and says how
+/// many went in. False when ReadMeABook isn't set up.
+Future<bool> requestAudibleBooksFromRmab(BuildContext context, List<Map<String, dynamic>> books) async {
+  final l = AppLocalizations.of(context)!;
+  if (books.isEmpty) return false;
+  final base = await ScopedPrefs.getString(kRmabBaseUrlKey);
+  final token = await ScopedPrefs.getString(kRmabApiTokenKey);
+  final headers = await loadRmabCustomHeaders();
+  if (!context.mounted) return false;
+  if (base == null || base.isEmpty || token == null || token.isEmpty) {
+    showOverlayToast(context, l.rmabRequestErrorTokenRejected, icon: Icons.error_outline_rounded);
+    return false;
+  }
+  final rmab = RmabService(baseUrl: base, apiToken: token, customHeaders: headers);
+  var sent = 0;
+  var skipped = 0;
+  for (final book in books) {
+    try {
+      final result =
+          await rmab.createRequest(RmabRequestInput.fromSearchResult(RmabSearchResult.fromUpcomingBookMap(book)));
+      if (result is RmabCreateSuccess) {
+        RmabLocalRequestCache.markRequested(book['asin'] as String? ?? '', result.request.status);
+        sent++;
+      } else {
+        skipped++;
+      }
+    } catch (e) {
+      debugPrint('[RMAB] bulk request error: $e');
+      skipped++;
+    }
+  }
+  if (!context.mounted) return true;
+  showOverlayToast(
+      context,
+      skipped == 0
+          ? l.upcomingReleasesBulkRequestDone(sent)
+          : '${l.upcomingReleasesBulkRequestDone(sent)} - ${l.upcomingReleasesBulkRequestSkipped(skipped)}',
+      icon: sent > 0 ? Icons.check_rounded : Icons.error_outline_rounded);
+  return true;
 }

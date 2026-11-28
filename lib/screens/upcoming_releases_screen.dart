@@ -21,7 +21,7 @@ import '../widgets/desktop_page_body.dart';
 import '../widgets/overlay_toast.dart';
 import '../widgets/rmab_book_detail_sheet.dart';
 import '../widgets/rmab_config_sheet.dart'
-    show kRmabBaseUrlKey, kRmabApiTokenKey, loadRmabCustomHeaders;
+    show kRmabBaseUrlKey, kRmabApiTokenKey;
 import '../widgets/series_books_sheet.dart';
 import '../widgets/stackable_sheet.dart';
 import '../l10n/app_localizations.dart';
@@ -726,7 +726,6 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
   }
 
   Future<void> _bulkRequest() async {
-    final l = AppLocalizations.of(context)!;
     final books = _selectableBooks();
     final picked = [
       for (final a in _selectedAsins)
@@ -747,45 +746,43 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
       });
       return;
     }
-    final targets = [for (final p in picked) p.book];
-    final base = await ScopedPrefs.getString(kRmabBaseUrlKey);
-    final token = await ScopedPrefs.getString(kRmabApiTokenKey);
-    final headers = await loadRmabCustomHeaders();
-    if (!mounted) return;
-    if (base == null || base.isEmpty || token == null || token.isEmpty) {
-      showOverlayToast(context, l.rmabRequestErrorTokenRejected, icon: Icons.error_outline_rounded);
-      return;
-    }
     setState(() => _bulkBusy = true);
-    final rmab = RmabService(baseUrl: base, apiToken: token, customHeaders: headers);
-    var sent = 0;
-    var skipped = 0;
-    for (final book in targets) {
-      try {
-        final result = await rmab.createRequest(
-            RmabRequestInput.fromSearchResult(RmabSearchResult.fromUpcomingBookMap(book)));
-        if (result is RmabCreateSuccess) {
-          RmabLocalRequestCache.markRequested(
-              book['asin'] as String? ?? '', result.request.status);
-          sent++;
-        } else {
-          skipped++;
-        }
-      } catch (e) {
-        debugPrint('[RMAB] bulk request error: $e');
-        skipped++;
-      }
-    }
+    final done = await requestAudibleBooksFromRmab(context, [for (final p in picked) p.book]);
     if (!mounted) return;
+    setState(() {
+      _bulkBusy = false;
+      if (done) _selectedAsins.clear();
+    });
+  }
+
+  /// Checks the release date of every selected book again, one at a time so
+  /// Audible isn't asked for dozens at once.
+  Future<void> _bulkRescanDates() async {
+    final l = AppLocalizations.of(context)!;
+    final api = context.read<AuthProvider>().apiService;
+    final libraryId = context.read<LibraryProvider>().selectedLibraryId;
+    final asins = List.of(_selectedAsins);
+    setState(() => _bulkBusy = true);
+    var checked = 0;
+    var failed = 0;
+    for (final asin in asins) {
+      final updated = await _service.rescanBook(asin, api: api, libraryId: libraryId);
+      if (updated != null) {
+        checked++;
+      } else {
+        failed++;
+      }
+      if (!mounted) return;
+    }
     setState(() {
       _bulkBusy = false;
       _selectedAsins.clear();
     });
     showOverlayToast(context,
-        skipped == 0
-            ? l.upcomingReleasesBulkRequestDone(sent)
-            : '${l.upcomingReleasesBulkRequestDone(sent)} - ${l.upcomingReleasesBulkRequestSkipped(skipped)}',
-        icon: sent > 0 ? Icons.check_rounded : Icons.error_outline_rounded);
+        failed == 0
+            ? l.upcomingReleasesBulkDatesChecked(checked)
+            : '${l.upcomingReleasesBulkDatesChecked(checked)} - ${l.upcomingReleasesBulkDatesFailed(failed)}',
+        icon: checked > 0 ? Icons.check_rounded : Icons.error_outline_rounded);
   }
 
   Future<void> _rescanBook(String asin) async {
@@ -1094,26 +1091,36 @@ class _UpcomingReleasesScreenState extends State<UpcomingReleasesScreen> {
           child: Row(children: [
             Text(l.upcomingReleasesSelectedCount(_selectedAsins.length),
               style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-            const Spacer(),
-            if (_bulkBusy)
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
-                child: SizedBox(width: 18, height: 18,
-                  child: AdaptiveSpinner(strokeWidth: 2)),
-              )
-            else ...[
-              if (_canRequest)
-                TextButton.icon(
-                  onPressed: requestable == 0 ? null : _bulkRequest,
-                  icon: const Icon(Icons.menu_book_rounded, size: 18),
-                  label: Text(l.upcomingReleasesBulkRequest),
-                ),
-              TextButton.icon(
-                onPressed: _bulkRemove,
-                icon: const Icon(Icons.playlist_remove_rounded, size: 18),
-                label: Text(l.upcomingReleasesBulkRemove),
-              ),
-            ],
+            // The actions wrap onto a second line on a narrow phone.
+            Expanded(
+              child: _bulkBusy
+                  ? const Align(
+                      alignment: Alignment.centerRight,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 12),
+                        child: SizedBox(width: 18, height: 18,
+                          child: AdaptiveSpinner(strokeWidth: 2)),
+                      ),
+                    )
+                  : Wrap(alignment: WrapAlignment.end, children: [
+                      TextButton.icon(
+                        onPressed: _bulkRescanDates,
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: Text(l.upcomingReleasesBulkRescanDates),
+                      ),
+                      if (_canRequest)
+                        TextButton.icon(
+                          onPressed: requestable == 0 ? null : _bulkRequest,
+                          icon: const Icon(Icons.menu_book_rounded, size: 18),
+                          label: Text(l.upcomingReleasesBulkRequest),
+                        ),
+                      TextButton.icon(
+                        onPressed: _bulkRemove,
+                        icon: const Icon(Icons.playlist_remove_rounded, size: 18),
+                        label: Text(l.upcomingReleasesBulkRemove),
+                      ),
+                    ]),
+            ),
             IconButton(
               icon: Icon(Icons.close_rounded, color: cs.onSurfaceVariant),
               onPressed: _bulkBusy ? null : () => setState(() => _selectedAsins.clear()),

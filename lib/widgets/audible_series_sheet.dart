@@ -77,6 +77,9 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
   late String _region;
   bool _rmabConfigured = false;
   bool _serverRequests = false;
+  final Set<String> _selected = {};
+  bool get _selecting => _selected.isNotEmpty;
+  bool _bulkBusy = false;
 
   @override
   void initState() {
@@ -258,6 +261,118 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
     );
   }
 
+  /// A selection only covers what is on screen, so switching views drops it.
+  void _setFilter(int filter) {
+    if (_bulkBusy) return;
+    setState(() {
+      _filter = filter;
+      _selected.clear();
+    });
+  }
+
+  void _toggleSelected(String asin) {
+    if (asin.isEmpty || _bulkBusy) return;
+    setState(() {
+      if (!_selected.remove(asin)) _selected.add(asin);
+    });
+  }
+
+  List<Map<String, dynamic>> get _selectedBooks =>
+      [for (final b in _allBooks) if (_selected.contains(b['asin'])) b];
+
+  /// Selected books that can be asked for: out, and not in the library.
+  List<Map<String, dynamic>> get _requestable =>
+      [for (final b in _selectedBooks) if (!_isOwned(b) && !_isUpcoming(b)) b];
+
+  /// Selected books the upcoming page takes: not out yet, or just out.
+  List<Map<String, dynamic>> get _addable =>
+      [for (final b in _selectedBooks) if (_isUpcoming(b) || _isRecent(b)) b];
+
+  Future<void> _bulkRequest() async {
+    final books = _requestable;
+    if (books.isEmpty) return;
+    final api = context.read<AuthProvider>().apiService;
+    setState(() => _bulkBusy = true);
+    final done = _serverRequests && api != null
+        ? await requestAudibleBooks(context, api, [for (final b in books) (book: b, seriesName: widget.seriesName)])
+        : await requestAudibleBooksFromRmab(context, books);
+    if (!mounted) return;
+    setState(() {
+      _bulkBusy = false;
+      if (done) _selected.clear();
+    });
+  }
+
+  Future<void> _bulkAddToUpcoming() async {
+    final l = AppLocalizations.of(context)!;
+    final books = _addable;
+    if (books.isEmpty) return;
+    setState(() => _bulkBusy = true);
+    var added = 0;
+    for (final b in books) {
+      final ok = await UpcomingReleasesService().addBook(
+        b,
+        seriesName: widget.seriesName,
+        audibleAsin: widget.seriesAsin,
+        region: _region,
+        owned: _isOwned(b),
+      );
+      if (ok) added++;
+    }
+    if (!mounted) return;
+    setState(() {
+      _bulkBusy = false;
+      _selected.clear();
+    });
+    showOverlayToast(
+      context,
+      added > 0 ? l.audibleSeriesBulkAdded(added) : l.audibleSeriesAlreadyInUpcoming,
+      icon: added > 0 ? Icons.event_available_rounded : Icons.info_outline_rounded,
+    );
+  }
+
+  Widget _selectionBar(ColorScheme cs, TextTheme tt, AppLocalizations l) {
+    final canRequest = _serverRequests || _rmabConfigured;
+    return Container(
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHigh,
+        border: Border(top: BorderSide(color: cs.onSurface.withValues(alpha: 0.08))),
+      ),
+      padding: EdgeInsets.fromLTRB(16, 6, 4, 6 + MediaQuery.of(context).viewPadding.bottom),
+      child: Row(children: [
+        Text(l.upcomingReleasesSelectedCount(_selected.length),
+            style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+        Expanded(
+          child: _bulkBusy
+              ? const Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: SizedBox(width: 18, height: 18, child: AdaptiveSpinner(strokeWidth: 2)),
+                  ),
+                )
+              : Wrap(alignment: WrapAlignment.end, children: [
+                  if (canRequest)
+                    TextButton.icon(
+                      onPressed: _requestable.isEmpty ? null : _bulkRequest,
+                      icon: const Icon(Icons.menu_book_rounded, size: 18),
+                      label: Text(l.upcomingReleasesBulkRequest),
+                    ),
+                  TextButton.icon(
+                    onPressed: _addable.isEmpty ? null : _bulkAddToUpcoming,
+                    icon: const Icon(Icons.event_available_rounded, size: 18),
+                    label: Text(l.audibleSeriesBulkAddUpcoming),
+                  ),
+                ]),
+        ),
+        IconButton(
+          icon: Icon(Icons.close_rounded, color: cs.onSurfaceVariant),
+          onPressed: _bulkBusy ? null : () => setState(() => _selected.clear()),
+        ),
+      ]),
+    );
+  }
+
   /// Released within the last 30 days - mirrors UpcomingReleasesService so the
   /// "Add to upcoming releases" action only shows for books that page accepts.
   bool _isRecent(Map<String, dynamic> book) {
@@ -352,13 +467,13 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(children: [
-              _filterChip(cs, l.audibleSeriesFilterMissing(missingCount), _filter == 0, () => setState(() => _filter = 0)),
+              _filterChip(cs, l.audibleSeriesFilterMissing(missingCount), _filter == 0, () => _setFilter(0)),
               const SizedBox(width: 8),
               if (upcomingCount > 0) ...[
-                _filterChip(cs, l.audibleSeriesFilterUpcoming(upcomingCount), _filter == 1, () => setState(() => _filter = 1)),
+                _filterChip(cs, l.audibleSeriesFilterUpcoming(upcomingCount), _filter == 1, () => _setFilter(1)),
                 const SizedBox(width: 8),
               ],
-              _filterChip(cs, l.audibleSeriesFilterAll(_allBooks.length), _filter == 2, () => setState(() => _filter = 2)),
+              _filterChip(cs, l.audibleSeriesFilterAll(_allBooks.length), _filter == 2, () => _setFilter(2)),
             ]),
           ),
         const SizedBox(height: 8),
@@ -393,11 +508,13 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
           Expanded(
             child: ListView.builder(
               controller: widget.scrollController,
-              padding: EdgeInsets.fromLTRB(16, 0, 16, 24 + MediaQuery.of(context).viewPadding.bottom),
+              padding: EdgeInsets.fromLTRB(
+                  16, 0, 16, _selecting ? 12 : 24 + MediaQuery.of(context).viewPadding.bottom),
               itemCount: displayBooks.length,
               itemBuilder: (context, index) => _buildBookCard(cs, tt, l, displayBooks[index]),
             ),
           ),
+        if (_selecting) _selectionBar(cs, tt, l),
       ],
     ));
   }
@@ -433,11 +550,14 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
     final isAbridged = bookFormat.contains('abridg');
     final owned = _isOwned(book);
     final upcoming = _isUpcoming(book);
+    final asin = book['asin'] as String? ?? '';
+    final selected = _selected.contains(asin);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: GestureDetector(
-        onTap: () => _openBookMenu(book, owned: owned, upcoming: upcoming),
+        onTap: () => _selecting ? _toggleSelected(asin) : _openBookMenu(book, owned: owned, upcoming: upcoming),
+        onLongPress: () => _toggleSelected(asin),
         child: Card(
         elevation: 0,
         color: upcoming
@@ -445,7 +565,10 @@ class _AudibleSeriesSheetState extends State<AudibleSeriesSheet> {
             : owned
                 ? cs.surfaceContainerHigh.withValues(alpha: 0.5)
                 : cs.surfaceContainerHigh,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: selected ? BorderSide(color: cs.primary, width: 1.5) : BorderSide.none,
+        ),
         clipBehavior: Clip.antiAlias,
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: 100),

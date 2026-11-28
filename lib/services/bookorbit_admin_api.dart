@@ -269,4 +269,28 @@ extension BookOrbitAdminApi on BookOrbitApiService {
           for (final p in (res['paths'] as List? ?? const []).whereType<Map<String, dynamic>>()) BoFolderCheck.fromJson(p),
         ];
       });
+
+  Future<BoRequestSettings> adminRequestSettings() => _admin(() async =>
+      BoRequestSettings.fromJson(await _boGet('/admin/book-request-automation') as Map<String, dynamic>));
+
+  /// Sends only [changes], so a setting this app doesn't show is left alone.
+  Future<BoRequestSettings> adminSaveRequestSettings(Map<String, dynamic> changes) => _admin(() async =>
+      BoRequestSettings.fromJson(await _boPut('/admin/book-request-automation', changes) as Map<String, dynamic>));
+
+  Future<BoDockSettings> adminDockSettings() =>
+      _admin(() async => BoDockSettings.fromJson(await _boGet('/book-dock/settings') as Map<String, dynamic>));
+
+  Future<BoDockSettings> adminSaveDockSettings(BoDockSettings settings) => _admin(() async =>
+      BoDockSettings.fromJson(await _boPut('/book-dock/settings', settings.toJson()) as Map<String, dynamic>));
+
+  /// Whether the dock has stopped taking in and filing files.
+  Future<bool> adminDockPaused() => _admin(() async {
+        final res = await _boGet('/book-dock/summary');
+        return res is Map && res['paused'] == true;
+      });
+
+  Future<bool> adminSetDockPaused(bool paused) => _admin(() async {
+        final res = await _boPost('/book-dock/${paused ? 'pause' : 'resume'}', const <String, dynamic>{});
+        return res is Map ? res['paused'] == true : paused;
+      });
 }

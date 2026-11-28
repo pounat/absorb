@@ -71,6 +71,7 @@ import 'collection_picker_sheet.dart';
 import 'delete_confirm_dialog.dart';
 import 'absorb_wave_icon.dart';
 import 'adaptive_modal.dart';
+import 'book_dock_join_sheet.dart';
 import 'stackable_sheet.dart';
 import 'ebook_router.dart';
 import '../utils/duration_format.dart';
@@ -2754,16 +2755,30 @@ class _BookDetailSheetContentState extends State<_BookDetailSheetContent> {
     }
     final picked = await _pickDockDestination(context, destinations, dock);
     if (picked == null || !mounted) return;
+    setState(() => _dockBusy = true);
+    final join = await api.bookDockJoinOptions(widget.itemId, picked);
+    if (!mounted || !context.mounted) return;
+    setState(() => _dockBusy = false);
+    BookDockJoinBook? joinBook;
+    if (join.canJoin) {
+      final how = await showBookDockJoinSheet(context, api: api, destination: picked, suggested: join.suggested);
+      if (how == null || !mounted || !context.mounted) return;
+      joinBook = how.book;
+    }
     final navigator = Navigator.of(context);
     final rootNavigator = rootNavigatorKey.currentState;
     setState(() => _dockBusy = true);
-    final result = await api.fileBookDockItem(widget.itemId, picked);
+    final result = await api.fileBookDockItem(widget.itemId, picked, joinBookId: joinBook?.bookId);
     if (!mounted) return;
     setState(() => _dockBusy = false);
     if (result.success) {
       if (navigator.canPop()) navigator.pop();
       await lib.refresh();
-      showNavigatorOverlayToast(rootNavigator, l.bookDockFiled(title, picked.libraryName),
+      showNavigatorOverlayToast(
+          rootNavigator,
+          joinBook != null && joinBook.title.isNotEmpty
+              ? l.bookDockJoined(joinBook.title)
+              : l.bookDockFiled(title, picked.libraryName),
           icon: Icons.library_add_check_rounded);
     } else if (result.duplicate) {
       final remove = await showDialog<bool>(

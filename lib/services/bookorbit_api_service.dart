@@ -3025,6 +3025,8 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
       itemId.substring(BookOrbitMapper.dockItemPrefix.length);
 
   Future<Map<String, dynamic>?> _dockLibrary() async {
+    // Sorting incoming files is phone work; a TV only plays.
+    if (AppPlatform.isTv) return null;
     if (!await _can('book_dock_access')) return null;
     return {
       'id': ApiService.bookDockLibraryId,
@@ -3306,7 +3308,47 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
   }
 
   @override
-  Future<BookDockFileResult> fileBookDockItem(String itemId, BookDockDestination destination) async {
+  Future<BookDockJoinOptions> bookDockJoinOptions(String itemId, BookDockDestination destination) async {
+    final fileId = int.tryParse(_dockFileId(itemId));
+    final libraryId = int.tryParse(destination.libraryId);
+    final folderId = int.tryParse(destination.folderId);
+    if (fileId == null || libraryId == null || folderId == null) return const BookDockJoinOptions();
+    try {
+      final res = await _boPost('/book-dock/finalize/preview', {
+        'fileIds': [fileId],
+        'overrides': [
+          {'fileId': fileId, 'libraryId': libraryId, 'folderId': folderId},
+        ],
+      }, const Duration(seconds: 30));
+      if (res is! Map) return const BookDockJoinOptions();
+      for (final item in (res['items'] as List<dynamic>? ?? const []).whereType<Map>()) {
+        if (item['fileId'] != fileId) continue;
+        // Absent on a server from before joining, which then never gets
+        // asked for one.
+        if (item['canJoinBook'] != true) return const BookDockJoinOptions();
+        final s = item['suggestedJoinBook'];
+        final bookId = s is Map ? (s['bookId'] as num?)?.toInt() : null;
+        return BookDockJoinOptions(
+          canJoin: true,
+          suggested: s is! Map || bookId == null
+              ? null
+              : BookDockJoinBook(
+                  bookId: bookId,
+                  title: '${s['title'] ?? ''}',
+                  authors: [for (final a in (s['authors'] as List<dynamic>? ?? const [])) '$a'],
+                  reason: s['reason'] as String?,
+                ),
+        );
+      }
+    } catch (e) {
+      debugPrint('[BookOrbit] Book Dock join options $fileId: $e');
+    }
+    return const BookDockJoinOptions();
+  }
+
+  @override
+  Future<BookDockFileResult> fileBookDockItem(String itemId, BookDockDestination destination,
+      {int? joinBookId}) async {
     final fileId = int.tryParse(_dockFileId(itemId));
     final libraryId = int.tryParse(destination.libraryId);
     final folderId = int.tryParse(destination.folderId);
@@ -3318,7 +3360,12 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
       final res = await _boPost('/book-dock/finalize', {
         'fileIds': [fileId],
         'overrides': [
-          {'fileId': fileId, 'libraryId': libraryId, 'folderId': folderId},
+          {
+            'fileId': fileId,
+            'libraryId': libraryId,
+            'folderId': folderId,
+            if (joinBookId != null) 'joinBook': {'bookId': joinBookId},
+          },
         ],
       }, const Duration(minutes: 2)) as Map<String, dynamic>;
       Map? result;
@@ -3326,8 +3373,9 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
         if (r['fileId'] == fileId) result = r;
       }
       final ok = result?['success'] == true;
-      debugPrint('[BookOrbit] Book Dock file $fileId -> library $libraryId: '
-          '${ok ? 'filed as book ${result?['bookId']}' : 'not filed (${result?['message']})'}');
+      debugPrint('[BookOrbit] Book Dock file $fileId -> library $libraryId'
+          '${joinBookId != null ? ' joining book $joinBookId' : ''}: '
+          '${ok ? 'filed as book ${result?['bookId']}' : 'not filed (${result?['errorCode'] ?? ''} ${result?['message']})'}');
       if (ok) {
         _afterDockGone(itemId);
         _recent.clear();
@@ -4101,12 +4149,26 @@ class BookOrbitApiService extends ApiService implements BookOrbitTokenSource {
   }
 
   @override
-  Future<({BookRequest? request, String? error})> grabBookRequestRelease(int id, int indexerId, String guid) async {
+  Future<bool> canHoldBookRequestForReview() async {
+    try {
+      return (await _features()).contains('book-request-review-hold');
+    } catch (e) {
+      debugPrint('[BookOrbit] hold for review support: $e');
+      return false;
+    }
+  }
+
+  @override
+  Future<({BookRequest? request, String? error})> grabBookRequestRelease(int id, int indexerId, String guid,
+      {bool holdForReview = false}) async {
     final base = await _fulfilBase();
     try {
+      // An older server refuses the field, so it only goes to one that has it.
+      final hold = holdForReview && await canHoldBookRequestForReview();
       final res = await _boPost('$base/$id/grab', {
         'indexerId': indexerId,
         'releaseGuid': guid,
+        if (hold) 'holdForReview': true,
       }, const Duration(minutes: 2));
       if (res is! Map || res['id'] is! num) return (request: null, error: null);
       return (request: BookRequest(Map<String, dynamic>.from(res)), error: null);
