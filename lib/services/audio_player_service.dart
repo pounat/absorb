@@ -783,7 +783,7 @@ class AudioPlayerHandler extends BaseAudioHandler with SeekHandler {
   /// Two pause keys closer together than this are one pause said twice, not
   /// a double press. Earbuds that pause when taken out send one per bud, and
   /// taking both out at once read as a double press and skipped forward.
-  static const _repeatedPauseGap = Duration(milliseconds: 150);
+  static const _repeatedPauseGap = Duration(milliseconds: 300);
 
   @override
   Future<void> click([MediaButton button = MediaButton.media]) async {
