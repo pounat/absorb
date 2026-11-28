@@ -32,10 +32,12 @@ class CardDualProgressBar extends StatefulWidget {
   final bool showCenterPercent;
   final String? libraryId;
   /// 0 as the card, rising to 1 as it grows into the full player: the chapter
-  /// bar gets a little taller and its sides move out to [grownInset].
+  /// bar gets a little taller.
   final double grow;
+  /// How far the bar's sides have moved out to [grownInset], [grow] if unset.
+  final double? edgeAlign;
   final double grownInset;
-  const CardDualProgressBar({super.key, required this.player, required this.accent, required this.isActive, required this.staticProgress, required this.staticDuration, required this.chapters, this.showBookBar = true, this.showChapterBar = true, this.chapterName, this.chapterIndex = 0, this.totalChapters = 0, this.itemId, this.compact = false, this.showBookPercentage = false, this.showCenterPercent = false, this.libraryId, this.grow = 0, this.grownInset = 24});
+  const CardDualProgressBar({super.key, required this.player, required this.accent, required this.isActive, required this.staticProgress, required this.staticDuration, required this.chapters, this.showBookBar = true, this.showChapterBar = true, this.chapterName, this.chapterIndex = 0, this.totalChapters = 0, this.itemId, this.compact = false, this.showBookPercentage = false, this.showCenterPercent = false, this.libraryId, this.grow = 0, this.edgeAlign, this.grownInset = 24});
   @override State<CardDualProgressBar> createState() => _CardDualProgressBarState();
 }
 
@@ -360,7 +362,7 @@ class _CardDualProgressBarState extends State<CardDualProgressBar> with WidgetsB
         );
 
         return Padding(
-          padding: EdgeInsets.symmetric(horizontal: 24 + (widget.grownInset - 24) * widget.grow),
+          padding: EdgeInsets.symmetric(horizontal: 24 + (widget.grownInset - 24) * (widget.edgeAlign ?? widget.grow)),
           child: Column(children: [
             // Book bar
             if (widget.showBookBar) ...[

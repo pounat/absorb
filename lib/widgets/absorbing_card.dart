@@ -1073,11 +1073,12 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
           // In landscape the card is wider than tall — switch to a two-pane
           // layout with the cover on the left and everything else on the right.
           final wide = cardConstraints.maxWidth > cardConstraints.maxHeight;
-          // Grown into the full player, the times and the chapter bar move
-          // out to the cover's edges.
+          // The times and the chapter bar sit out at the cover's edges, on the
+          // card the same as in the full player.
           final alignG = (wide || desktopPresentation || _rectangleCovers) ? 0.0 : g;
+          final edgeG = (wide || desktopPresentation || _rectangleCovers) ? 0.0 : 1.0;
           final grownInset = 4 + (cardConstraints.maxWidth - 8) * 0.025;
-          final statsInset = 24 + (grownInset - 24) * alignG;
+          final statsInset = 24 + (grownInset - 24) * edgeG;
           // The playback buttons and the button grid get bigger in the full
           // player, by as much as the spare height allows and no more than a
           // quarter: on a short screen, or one with the display zoomed in,
@@ -1172,9 +1173,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
                     builder: (context, constraints) {
                       final maxW = spaciousDesktop
                           ? (constraints.maxWidth * 0.9).clamp(0.0, 780.0).toDouble()
-                          // A little more of the width as it grows into the
-                          // full player.
-                          : constraints.maxWidth * (0.85 + 0.1 * g);
+                          : constraints.maxWidth * (wide ? 0.85 + 0.1 * g : 0.95);
                       final rawH = constraints.maxHeight.isFinite ? constraints.maxHeight : maxW;
                       final maxH = rawH - 24;
                       double coverW, coverH;
@@ -1365,8 +1364,8 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
               );
 
           final scrubberBar = Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20 * (1 - alignG)),
-                  child: CardDualProgressBar(grow: alignG, grownInset: grownInset, player: widget.player, accent: accent, isActive: _isActive, staticProgress: (_isPodcastEpisode && _chapters.isEmpty) ? 0.0 : progress, staticDuration: (_isPodcastEpisode && _chapters.isEmpty) ? widget.player.totalDuration : _effectiveDuration, chapters: _chapters, showBookBar: false, showChapterBar: true, chapterName: (_isPodcastEpisode && _chapters.isEmpty) ? (widget.player.currentEpisodeTitle ?? widget.player.currentTitle ?? _title) : (_episodeId != null && !_isActive ? (_recentEpisode?['title'] as String? ?? _title) : (_chapters.isEmpty ? _title : _chapterName(chapterIdx))), chapterIndex: chapterIdx, totalChapters: totalChapters, itemId: _itemId, compact: compact, libraryId: _resolveLibraryId()),
+                  padding: EdgeInsets.symmetric(horizontal: 20 * (1 - edgeG)),
+                  child: CardDualProgressBar(grow: alignG, edgeAlign: edgeG, grownInset: grownInset, player: widget.player, accent: accent, isActive: _isActive, staticProgress: (_isPodcastEpisode && _chapters.isEmpty) ? 0.0 : progress, staticDuration: (_isPodcastEpisode && _chapters.isEmpty) ? widget.player.totalDuration : _effectiveDuration, chapters: _chapters, showBookBar: false, showChapterBar: true, chapterName: (_isPodcastEpisode && _chapters.isEmpty) ? (widget.player.currentEpisodeTitle ?? widget.player.currentTitle ?? _title) : (_episodeId != null && !_isActive ? (_recentEpisode?['title'] as String? ?? _title) : (_chapters.isEmpty ? _title : _chapterName(chapterIdx))), chapterIndex: chapterIdx, totalChapters: totalChapters, itemId: _itemId, compact: compact, libraryId: _resolveLibraryId()),
                 );
 
           final controlsRow = Padding(
@@ -1608,7 +1607,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
             );
           }
 
-          final coverMaxW = (cardConstraints.maxWidth - 8) * (0.85 + 0.1 * g);
+          final coverMaxW = (cardConstraints.maxWidth - 8) * 0.95;
           return CustomMultiChildLayout(
             delegate: _CardColumnLayout(
               grow: g,
@@ -1617,7 +1616,7 @@ class AbsorbingCardState extends State<AbsorbingCard> with AutomaticKeepAliveCli
               gapAboveControls: compact ? 6 : 10,
               gapAboveButtons: compact ? 6 : 12,
               gapBelowStats: 10 * g,
-              edgeInset: statsInset * alignG,
+              edgeInset: statsInset * edgeG,
               grownBy: gridScale > 1.01 ? gridScale : 1.0,
               onMeasured: g > 0 ? _noteGrowRoom : null,
             ),
